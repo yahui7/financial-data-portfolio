@@ -1,7 +1,8 @@
 """
 反洗钱风险自评估引擎（公司层面）
 - 四维评估模型：客户风险 · 产品/业务风险 · 渠道风险 · 地域风险
-- 自动分析数据库真实数据 + 框架性评估项
+- 数据库驱动：评估指标从 assessment_item 表读取，不再硬编码
+- 支持多套行业模板（银行/基金/保险）
 """
 from datetime import datetime
 from typing import Optional
@@ -9,26 +10,16 @@ from typing import Optional
 from backend.database import get_connection
 
 
-# ── 高风险国家/地区 ──
-HIGH_RISK_COUNTRIES = [
-    "伊朗", "朝鲜", "缅甸", "叙利亚", "也门", "阿富汗", "伊拉克",
-    "刚果", "南苏丹", "苏丹", "索马里", "利比亚", "马里",
-    "巴哈马", "巴巴多斯", "保加利亚", "布基纳法索", "喀麦隆", "克罗地亚",
-    "直布罗陀", "海地", "牙买加", "莫桑比克", "尼日利亚", "菲律宾",
-    "塞内加尔", "坦桑尼亚", "土耳其", "乌干达", "阿联酋", "越南",
-]
-
-HIGH_RISK_OCCUPATIONS = ["个体工商户", "自由职业者", "企业高管"]
-MEDIUM_RISK_OCCUPATIONS = ["律师", "会计师", "工程师", "企业员工", "公务员"]
-
-
 class AMLEngine:
-    """公司层面反洗钱风险自评估"""
+    """公司层面反洗钱风险自评估（数据库驱动）"""
 
-    def __init__(self):
+    def __init__(self, preset_id: str = "preset_securities"):
+        self.preset_id = preset_id
         self.conn = get_connection()
 
-    # ── 主评估流程 ──
+    # ═══════════════════════════════════════════════
+    # 主评估流程
+    # ═══════════════════════════════════════════════
 
     def assess(self) -> dict:
         """执行全公司反洗钱风险自评估"""
@@ -40,25 +31,59 @@ class AMLEngine:
         transactions = self._fetch_all(cursor, "trans_record")
         products = self._fetch_all(cursor, "product")
 
-        # 关联产品信息到账户
+        # 关联产品信息到账户（后续可能需要）
         prod_map = {p["product_id"]: p for p in products}
         for a in accounts:
             a["_product"] = prod_map.get(a.get("product_id"), {})
 
-        self.conn.close()
+        # 构建数据上下文，供 data_source 执行时使用
+        data_ctx = {
+            "customers": customers,
+            "accounts": accounts,
+            "transactions": transactions,
+            "products": products,
+            "cursor": cursor,
+            "total_customers": len(customers),
+            "total_accounts": len(accounts),
+            "total_transactions": len(transactions),
+            "total_products": len(products),
+        }
+
+        # 从数据库加载评估指标
+        dim_items = {
+            "customer": self._load_items("customer"),
+            "product": self._load_items("product"),
+            "channel": self._load_items("channel"),
+            "geography": self._load_items("geography"),
+        }
 
         # 四维评估
-        customer_result = self._assess_customer(customers, accounts)
-        product_result = self._assess_product(accounts, products)
-        channel_result = self._assess_channel(transactions)
-        geography_result = self._assess_geography(customers, transactions)
+        dim_names = {
+            "customer": "客户风险",
+            "product": "产品/业务风险",
+            "channel": "渠道风险",
+            "geography": "地域风险",
+        }
+        dimension_results = {}
+        all_recommendations = []
 
-        # 加权总分
-        weights = {"customer": 0.30, "product": 0.25, "channel": 0.25, "geography": 0.20}
+        for dim_key in ["customer", "product", "channel", "geography"]:
+            items = dim_items[dim_key]
+            result = self._assess_dimension(dim_names[dim_key], items, data_ctx)
+            dimension_results[dim_key] = result
+            all_recommendations.extend(result.get("recommendations", []))
+
+        # 评估完成后再关闭连接
+        self.conn.close()
+
+        # 加权总分（四维权重可配置，默认均等）
+        dim_weights = {
+            "customer": 0.30, "product": 0.25,
+            "channel": 0.25, "geography": 0.20,
+        }
         overall = round(sum(
-            r["score"] * weights[k]
-            for k, r in [("customer", customer_result), ("product", product_result),
-                         ("channel", channel_result), ("geography", geography_result)]
+            dimension_results[k]["score"] * dim_weights[k]
+            for k in ["customer", "product", "channel", "geography"]
         ), 1)
 
         # 风险等级
@@ -71,266 +96,297 @@ class AMLEngine:
         else:
             level, level_name = "最高", "最高风险"
 
-        # 汇总整改建议
-        all_recommendations = []
-        for dim_result in [customer_result, product_result, channel_result, geography_result]:
-            all_recommendations.extend(dim_result.get("recommendations", []))
-
         return {
             "status": "ok",
             "assessment_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "preset_id": self.preset_id,
             "data_summary": {
-                "customers": len(customers),
-                "accounts": len(accounts),
-                "transactions": len(transactions),
-                "products": len(products),
+                "customers": data_ctx["total_customers"],
+                "accounts": data_ctx["total_accounts"],
+                "transactions": data_ctx["total_transactions"],
+                "products": data_ctx["total_products"],
             },
             "overall_score": overall,
             "risk_level": level,
             "risk_level_name": level_name,
-            "dimensions": {
-                "customer": customer_result,
-                "product": product_result,
-                "channel": channel_result,
-                "geography": geography_result,
-            },
+            "dimensions": dimension_results,
             "recommendations": all_recommendations,
         }
 
-    # ── 一、客户风险评估 ──
+    # ═══════════════════════════════════════════════
+    # 统一维度评估
+    # ═══════════════════════════════════════════════
 
-    def _assess_customer(self, customers: list, accounts: list) -> dict:
-        items = []
-        total = max(len(customers), 1)
+    def _assess_dimension(self, name: str, items: list[dict],
+                          ctx: dict) -> dict:
+        """统一评估一个维度下的所有指标"""
+        results = []
 
-        # 1.1 高风险职业客户
-        high_occ = [c for c in customers if c.get("occupation") in HIGH_RISK_OCCUPATIONS]
-        risk = "高" if len(high_occ) / total > 0.3 else "中" if len(high_occ) / total > 0.1 else "低"
-        items.append({
-            "name": "高风险职业客户",
-            "risk": risk,
-            "detail": f"共 {len(high_occ)} 人 ({round(len(high_occ)/total*100, 1)}%)",
-            "remark": f"包括个体工商户、自由职业者、企业高管等",
-        })
+        for item in items:
+            # 获取实际数据
+            actual_value = self._execute_data_source(item, ctx)
+            total = self._get_total_for_item(item, ctx)
 
-        # 1.2 客户自身风险等级分布
-        high_cl = sum(1 for c in customers if c.get("risk_level") == "高")
-        mid_cl = sum(1 for c in customers if c.get("risk_level") == "中")
-        risk = "高" if high_cl / total > 0.2 else "中" if high_cl / total > 0.05 else "低"
-        items.append({
-            "name": "客户风险等级分布",
-            "risk": risk,
-            "detail": f"高: {high_cl}人 | 中: {mid_cl}人 | 低: {total-high_cl-mid_cl}人",
-            "remark": f"高/中风险客户占比 {round((high_cl+mid_cl)/total*100, 1)}%",
-        })
+            if item["category"] == "framework":
+                # 框架型：直接使用预设风险等级
+                risk = item.get("default_risk", "中")
+                detail = item.get("description", "需进一步核查")
+                remark = item.get("description", "")
+            else:
+                # 数据驱动型：根据阈值判断
+                risk = self._calc_risk(actual_value, total, item)
+                detail = self._build_detail(actual_value, total, item, ctx)
+                remark = item.get("description", "")
 
-        # 1.3 证件类型
-        passport_cnt = sum(1 for c in customers if c.get("id_type") == "护照")
-        risk = "中" if passport_cnt > 0 else "低"
-        items.append({
-            "name": "非居民客户（护照开户）",
-            "risk": risk,
-            "detail": f"共 {passport_cnt} 人" if passport_cnt else "无",
-            "remark": "非居民身份需加强身份识别" if passport_cnt else "未发现非居民客户",
-        })
+            results.append({
+                "name": item["name"],
+                "risk": risk,
+                "detail": detail,
+                "remark": remark,
+                "item_key": item["item_key"],
+                "category": item["category"],
+                "raw_value": actual_value,
+            })
 
-        # 1.4 客户信息完整性
-        incomplete = sum(1 for c in customers
-                         if not c.get("id_number") or not c.get("phone") or not c.get("email"))
-        risk = "高" if incomplete / total > 0.1 else "中" if incomplete > 0 else "低"
-        items.append({
-            "name": "客户九要素信息完整性",
-            "risk": risk,
-            "detail": f"信息缺失: {incomplete}人" if incomplete else "全部完整",
-            "remark": "影响CDD有效执行" if incomplete else "KYC信息完备",
-        })
+        # 生成整改建议
+        recommendations = self._build_recommendations(name, results)
 
-        # 1.5 受益所有人穿透（框架性）
-        items.append({
-            "name": "受益所有人穿透识别",
-            "risk": "中",
-            "detail": "需进一步核查",
-            "remark": "建议对高风险客户执行穿透识别至最终自然人",
-        })
+        return self._calc_dim_score(name, results, recommendations)
 
-        return self._calc_dim_score("客户风险", items, [
-            "对高风险职业客户及高/中风险等级客户执行强化尽职调查（EDD）",
-            "完善客户九要素信息，降低信息缺失率",
-            "对受益所有人结构复杂的客户进行穿透识别",
-        ])
+    # ═══════════════════════════════════════════════
+    # 数据源执行
+    # ═══════════════════════════════════════════════
 
-    # ── 二、产品/业务风险评估 ──
+    def _execute_data_source(self, item: dict, ctx: dict) -> float:
+        """执行指标的 data_source，返回数值结果"""
+        ds = item.get("data_source") or ""
 
-    def _assess_product(self, accounts: list, products: list) -> dict:
-        items = []
-        prod_count = max(len(products), 1)
+        if not ds:
+            return 0
 
-        # 按产品类型归类
-        type_dist = {}
-        for p in products:
-            ptype = p.get("product_type", "未知")
-            type_dist[ptype] = type_dist.get(ptype, 0) + 1
+        if ds.startswith("func:"):
+            # 函数型：调用对应内部方法
+            func_name = ds[5:]  # 去掉 "func:" 前缀
+            method = getattr(self, f"_calc_{func_name}", None)
+            if method:
+                return method(ctx)
+            print(f"[WARN] 未找到函数: _calc_{func_name}")
+            return 0
 
-        # 2.1 高风险产品
-        high_risk_types = {"私募-股票多头", "私募-量化对冲", "专户-权益"}
-        high_risk_prods = [p for p in products if p.get("product_type") in high_risk_types]
-        risk = "高" if len(high_risk_prods) / prod_count > 0.2 else "中" if high_risk_prods else "低"
-        items.append({
-            "name": "高风险产品（私募/专户权益类）",
-            "risk": risk,
-            "detail": f"共 {len(high_risk_prods)} 只 ({round(len(high_risk_prods)/prod_count*100,1)}%)",
-            "remark": f"包括私募股票多头、量化对冲、专户权益等",
-        })
+        if ds.upper().startswith("SELECT"):
+            # SQL型：执行查询
+            try:
+                cursor = ctx["cursor"]
+                cursor.execute(ds)
+                row = cursor.fetchone()
+                if row:
+                    # 兼容两种返回: {"cnt": N} 或 {"COUNT(*)": N}
+                    val = row["cnt"] if "cnt" in row.keys() else row[0]
+                    return float(val) if val is not None else 0
+            except Exception as e:
+                print(f"[WARN] SQL执行失败 [{item.get('item_key')}]: {e}")
+                return 0
 
-        # 2.2 产品类型分布
-        type_list = [f"{k}:{v}只" for k, v in sorted(type_dist.items(), key=lambda x:-x[1])[:5]]
-        items.append({
-            "name": "产品类型分布",
-            "risk": "中" if len(type_dist) > 5 else "低",
-            "detail": " | ".join(type_list),
-            "remark": "产品类型越多样，风险复杂度越高",
-        })
+        return 0
 
-        # 2.3 新产品上线评估
-        items.append({
-            "name": "新产品/新业务上线洗钱风险评估",
-            "risk": "中",
-            "detail": "需确认流程完整性",
-            "remark": "建议建立新产品上线前洗钱风险评估流程并留痕",
-        })
+    def _get_total_for_item(self, item: dict, ctx: dict) -> int:
+        """获取指标的分母（用于计算比例）"""
+        dim = item.get("dimension", "")
+        data_source = item.get("data_source") or ""
 
-        # 2.4 关联账户数
-        avg_accounts = len(accounts) / max(len(set(a.get("customer_id") for a in accounts)), 1)
-        risk = "中" if avg_accounts > 2 else "低"
-        items.append({
-            "name": "人均持账户数",
-            "risk": risk,
-            "detail": f"平均 {round(avg_accounts, 1)} 个/人",
-            "remark": "人均多账户可能被用于分层交易规避监测",
-        })
+        if dim == "customer" or "customer" in data_source.lower():
+            return max(ctx["total_customers"], 1)
+        elif dim == "product" or "product" in data_source.lower():
+            # 部分产品指标以product为分母，渠道指标以transaction为分母
+            if "product" in data_source.lower():
+                return max(ctx["total_products"], 1)
+            return max(ctx["total_transactions"], 1)
+        elif dim == "channel":
+            return max(ctx["total_transactions"], 1)
+        elif dim == "geography":
+            if "customer" in data_source.lower():
+                return max(ctx["total_customers"], 1)
+            return max(ctx["total_transactions"], 1)
 
-        return self._calc_dim_score("产品/业务风险", items, [
-            "对高风险产品（私募/专户）执行专项洗钱风险评估",
-            "建立新产品上线前洗钱风险评估机制",
-            "关注一人多户情况，排查是否存在规避监测行为",
-        ])
+        # 默认根据 item_key 推断
+        key = item.get("item_key", "")
+        if "cust" in key:
+            return max(ctx["total_customers"], 1)
+        elif "prod" in key:
+            return max(ctx["total_products"], 1)
+        else:
+            return max(ctx["total_transactions"], 1)
 
-    # ── 三、渠道风险评估 ──
+    def _calc_risk(self, value: float, total: int,
+                   item: dict) -> str:
+        """根据阈值计算风险等级"""
+        th_high = item.get("threshold_high")
+        th_mid = item.get("threshold_mid")
 
-    def _assess_channel(self, transactions: list) -> dict:
-        items = []
-        total = max(len(transactions), 1)
+        if th_high is None and th_mid is None:
+            return "中"
 
-        # 渠道分布
-        ch_dist = {}
+        ratio = value / max(total, 1)
+
+        # 阈值含义：threshold_high > 1 表示绝对数值阈值（如产品类型数），
+        # 否则表示比例阈值
+        if th_high is not None and th_high > 1:
+            # 绝对数值型阈值
+            if value >= th_high:
+                return "高"
+            elif th_mid and value >= th_mid:
+                return "中"
+            else:
+                return "低"
+        else:
+            # 比例型阈值
+            if th_high and ratio > th_high:
+                return "高"
+            elif th_mid and ratio > th_mid:
+                return "中"
+            else:
+                return "低"
+
+    def _build_detail(self, value: float, total: int,
+                      item: dict, ctx: dict) -> str:
+        """根据指标生成人类可读的数据详情文本"""
+        key = item.get("item_key", "")
+        th_high = item.get("threshold_high") or 0
+
+        # 绝对数值型
+        if th_high > 1:
+            return f"共 {int(value)}"
+
+        # 比例型
+        pct = round(value / max(total, 1) * 100, 1)
+        return f"共 {int(value)} 条 ({pct}%)"
+
+    # ═══════════════════════════════════════════════
+    # 函数型数据源（func:xxx 对应 _calc_xxx）
+    # ═══════════════════════════════════════════════
+
+    def _calc_top5_concentration(self, ctx: dict) -> float:
+        """前5名客户交易金额占比"""
+        transactions = ctx["transactions"]
+        from collections import defaultdict
+        cust_amounts = defaultdict(float)
         for t in transactions:
-            ch = t.get("channel", "未知")
-            ch_dist[ch] = ch_dist.get(ch, 0) + 1
+            cust_amounts[t.get("customer_id", "")] += abs(t.get("amount") or 0)
+        top5 = sum(sorted(cust_amounts.values(), reverse=True)[:5])
+        total_amount = sum(cust_amounts.values())
+        return round(top5 / max(total_amount, 1), 4)
 
-        # 3.1 非面对面渠道
-        non_face = sum(v for k, v in ch_dist.items() if k in ("手机银行", "网银", "代销", "ATM"))
-        risk = "高" if non_face / total > 0.7 else "中" if non_face / total > 0.4 else "低"
-        items.append({
-            "name": "非面对面业务渠道占比",
-            "risk": risk,
-            "detail": f"{non_face}笔 ({round(non_face/total*100, 1)}%)",
-            "remark": "非面对面渠道增加匿名风险",
-        })
+    def _calc_avg_accounts_per_customer(self, ctx: dict) -> float:
+        """人均持账户数"""
+        accounts = ctx["accounts"]
+        cust_ids = set(a.get("customer_id") for a in accounts if a.get("customer_id"))
+        return round(len(accounts) / max(len(cust_ids), 1), 1)
 
-        # 3.2 渠道分布明细
-        items.append({
-            "name": "渠道分布",
-            "risk": "中" if len(ch_dist) > 3 else "低",
-            "detail": " | ".join(f"{k}:{round(v/total*100,1)}%" for k, v in sorted(ch_dist.items(), key=lambda x:-x[1])),
-            "remark": "多渠道并存，需确保各渠道风控措施一致",
-        })
+    def _calc_channel_amount_cross(self, ctx: dict) -> float:
+        """非面对面渠道 × 大额交易交叉占比"""
+        transactions = ctx["transactions"]
+        non_face_channels = {"手机银行", "网银", "代销", "ATM"}
+        cross = [
+            t for t in transactions
+            if t.get("channel") in non_face_channels
+            and abs(t.get("amount") or 0) > 1000000
+        ]
+        return len(cross)
 
-        # 3.3 代销渠道
-        daixiao = ch_dist.get("代销", 0)
-        risk = "高" if daixiao / total > 0.15 else "中" if daixiao > 0 else "低"
-        items.append({
-            "name": "代销渠道风险",
-            "risk": risk,
-            "detail": f"{daixiao}笔 ({round(daixiao/total*100, 1)}%)" if daixiao else "无代销交易",
-            "remark": "代销渠道客户识别依赖第三方，信息不对称风险高",
-        })
-
-        return self._calc_dim_score("渠道风险", items, [
-            "加强非面对面渠道客户身份识别措施",
-            "定期评估代销渠道反洗钱合规情况",
-            "各渠道部署一致的交易监测规则",
-        ])
-
-    # ── 四、地域风险评估 ──
-
-    def _assess_geography(self, customers: list, transactions: list) -> dict:
-        items = []
-        total_cust = max(len(customers), 1)
-        total_txn = max(len(transactions), 1)
-
-        # 4.1 高风险国家关联客户
-        high_geo_cust = [c for c in customers if c.get("nationality") in HIGH_RISK_COUNTRIES]
-        non_cn = [c for c in customers if c.get("nationality") != "中国"]
-        risk = "高" if high_geo_cust else "中" if non_cn else "低"
-        items.append({
-            "name": "高风险/FATF名单国家关联客户",
-            "risk": risk,
-            "detail": f"高风险国家: {len(high_geo_cust)}人 | 非中国: {len(non_cn)}人",
-            "remark": "高风险国籍客户需加强尽调" if high_geo_cust else "未发现FATF高风险国家关联",
-        })
-
-        # 4.2 跨境交易
-        cross_txn = [t for t in transactions if t.get("currency", "CNY") != "CNY"]
-        risk = "高" if len(cross_txn) / total_txn > 0.1 else "中" if cross_txn else "低"
-        items.append({
-            "name": "跨境交易占比",
-            "risk": risk,
-            "detail": f"{len(cross_txn)}笔 ({round(len(cross_txn)/total_txn*100,1)}%)" if cross_txn else "无跨境交易",
-            "remark": "跨境交易须关注资金来源与去向" if cross_txn else "暂未发现跨境交易",
-        })
-
-        # 4.3 客户地域集中度
+    def _calc_province_diversity(self, ctx: dict) -> int:
+        """客户覆盖的省级行政区数量"""
         provinces = set()
-        for c in customers:
-            addr = c.get("address", "")
-            # 粗略提取地名
-            for prov in ["北京", "上海", "广东", "深圳", "四川", "湖北", "浙江", "江苏", "福建", "山东",
-                         "河北", "河南", "湖南", "陕西", "云南", "贵州", "广西", "辽宁", "吉林", "黑龙江",
-                         "重庆", "天津", "海南", "甘肃", "宁夏", "青海", "西藏", "新疆", "内蒙古", "安徽",
-                         "江西", "山西"]:
-                if prov in (addr or ""):
+        all_provinces = [
+            "北京", "上海", "广东", "深圳", "四川", "湖北", "浙江", "江苏",
+            "福建", "山东", "河北", "河南", "湖南", "陕西", "云南", "贵州",
+            "广西", "辽宁", "吉林", "黑龙江", "重庆", "天津", "海南", "甘肃",
+            "宁夏", "青海", "西藏", "新疆", "内蒙古", "安徽", "江西", "山西",
+        ]
+        for c in ctx["customers"]:
+            addr = c.get("address", "") or ""
+            for prov in all_provinces:
+                if prov in addr:
                     provinces.add(prov)
-        risk = "低" if len(provinces) > 5 else "中"
-        items.append({
-            "name": "客户地域分布",
-            "risk": risk,
-            "detail": f"覆盖约 {len(provinces)} 个地区" if provinces else "未能提取地域信息",
-            "remark": "地域分布广泛，有利于风险分散" if len(provinces) > 5 else "地域较集中",
-        })
+        return len(provinces)
 
-        # 4.4 FATF声明核查
-        items.append({
-            "name": "FATF声明与制裁名单更新",
-            "risk": "中",
-            "detail": "需定期更新",
-            "remark": "建议建立制裁名单定期更新与回溯机制",
-        })
+    def _calc_cross_region_ratio(self, ctx: dict) -> float:
+        """
+        异地交易占比：客户所在地与交易对手方所在地不一致的比例
+        简化版：统计交易对手方信息中包含非本地省份的交易占比
+        """
+        transactions = ctx["transactions"]
+        if not transactions:
+            return 0
 
-        return self._calc_dim_score("地域风险", items, [
-            "对高风险国家关联客户执行EDD",
-            "加强跨境交易资金流向监控",
-            "建立制裁名单定期更新和回溯筛查机制",
-        ])
+        # 构建客户省份映射
+        all_provinces = [
+            "北京", "上海", "广东", "深圳", "四川", "湖北", "浙江", "江苏",
+            "福建", "山东", "河北", "河南", "湖南", "陕西", "云南", "贵州",
+            "广西", "辽宁", "吉林", "黑龙江", "重庆", "天津", "海南", "甘肃",
+            "宁夏", "青海", "西藏", "新疆", "内蒙古", "安徽", "江西", "山西",
+        ]
+        cust_province = {}
+        for c in ctx["customers"]:
+            addr = c.get("address", "") or ""
+            found = None
+            for prov in all_provinces:
+                if prov in addr:
+                    found = prov
+                    break
+            cust_province[c.get("customer_id")] = found
 
-    # ── 辅助方法 ──
+        cross_count = 0
+        for t in transactions:
+            cp_info = t.get("counterparty_info", "") or ""
+            cust_prov = cust_province.get(t.get("customer_id"))
+            if cust_prov and cp_info:
+                # 如果对手方信息中包含其他省份，视为异地交易
+                for prov in all_provinces:
+                    if prov != cust_prov and prov in cp_info:
+                        cross_count += 1
+                        break
 
-    def _calc_dim_score(self, name: str, items: list, recommendations: list) -> dict:
+        return round(cross_count / max(len(transactions), 1), 4)
+
+    def _calc_surrender_ratio(self, ctx: dict) -> float:
+        """
+        退保交易占比（保险模板专用）
+        统计交易类型为退保或退费的占比
+        """
+        transactions = ctx["transactions"]
+        if not transactions:
+            return 0
+        surrender = [
+            t for t in transactions
+            if t.get("transaction_type", "") in ("退保", "退费", "赎回")
+        ]
+        return len(surrender)
+
+    # ═══════════════════════════════════════════════
+    # 数据库加载
+    # ═══════════════════════════════════════════════
+
+    def _load_items(self, dimension: str) -> list[dict]:
+        """从数据库加载指定维度的启用的评估指标"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM assessment_item
+            WHERE preset_id = ? AND dimension = ? AND enabled = 1
+            ORDER BY sort_order
+        """, (self.preset_id, dimension))
+        return [dict(r) for r in cursor.fetchall()]
+
+    # ═══════════════════════════════════════════════
+    # 评分与建议
+    # ═══════════════════════════════════════════════
+
+    def _calc_dim_score(self, name: str, items: list,
+                        recommendations: list) -> dict:
         """根据评估项计算维度得分"""
         risk_vals = {"高": 85, "中": 50, "低": 15}
         scores = [risk_vals.get(i["risk"], 25) for i in items]
         raw = round(sum(scores) / len(scores), 1) if scores else 50
 
-        # 统计风险分布
         high_cnt = sum(1 for i in items if i["risk"] == "高")
         mid_cnt = sum(1 for i in items if i["risk"] == "中")
         low_cnt = sum(1 for i in items if i["risk"] == "低")
@@ -339,11 +395,46 @@ class AMLEngine:
             "name": name,
             "score": raw,
             "items": items,
-            "summary": f"评估{len(items)}项: 高风险{high_cnt}项, 中风险{mid_cnt}项, 低风险{low_cnt}项",
+            "summary": f"评估{len(items)}项: 高风险{high_cnt}项, "
+                       f"中风险{mid_cnt}项, 低风险{low_cnt}项",
             "recommendations": recommendations,
         }
+
+    def _build_recommendations(self, dim_name: str,
+                               results: list) -> list:
+        """根据评估结果自动生成整改建议"""
+        recs = []
+        high_items = [r for r in results if r["risk"] == "高"]
+        mid_items = [r for r in results if r["risk"] == "中"]
+
+        for item in high_items:
+            recs.append(f"[{dim_name}] {item['name']}风险为高，"
+                        f"建议优先整改。{item['remark']}")
+
+        for item in mid_items[:3]:  # 中风险最多3条建议
+            recs.append(f"[{dim_name}] {item['name']}风险为中，"
+                        f"建议持续关注。{item['remark']}")
+
+        if not recs:
+            recs.append(f"[{dim_name}] 本维度未发现高风险项，建议保持现状并持续监控。")
+
+        return recs
+
+    # ═══════════════════════════════════════════════
+    # 数据库辅助
+    # ═══════════════════════════════════════════════
 
     def _fetch_all(self, cursor, table: str) -> list[dict]:
         """获取表中所有记录"""
         cursor.execute(f"SELECT * FROM {table}")
         return [dict(r) for r in cursor.fetchall()]
+
+
+# ═══════════════════════════════════════════════
+# 兼容旧接口
+# ═══════════════════════════════════════════════
+
+def assess_company(preset_id: str = "preset_securities") -> dict:
+    """便捷函数：执行公司层面反洗钱风险自评估"""
+    engine = AMLEngine(preset_id=preset_id)
+    return engine.assess()

@@ -104,12 +104,13 @@ class ReportEngine:
         return "\n".join(lines)
 
     def _get_aml_assessment(self) -> str:
-        """生成AML评估内容"""
-        engine = AMLEngine()
+        """生成AML评估内容（使用数据库驱动引擎）"""
+        engine = AMLEngine(preset_id="preset_securities")
         result = engine.assess()
 
         text = (
-            f"评估时间：{result['assessment_time']}\n\n"
+            f"评估时间：{result['assessment_time']}\n"
+            f"评估模板：{result.get('preset_id', '')}\n\n"
             f"综合风险评分：{result['overall_score']} 分\n"
             f"风险等级：{result['risk_level_name']}\n\n"
         )
@@ -119,13 +120,13 @@ class ReportEngine:
             dim = dims[dk]
             text += f"{dim['name']}：{dim['score']} 分\n"
             for item in dim["items"]:
-                text += f"  · {item['name']}：{item['risk']} — {item['detail']}\n"
+                text += f"  · [{item['risk']}] {item['name']}：{item['detail']}\n"
             text += "\n"
         return text
 
     def _get_aml_recommendations(self) -> str:
         """生成AML整改建议"""
-        engine = AMLEngine()
+        engine = AMLEngine(preset_id="preset_securities")
         result = engine.assess()
         if not result["recommendations"]:
             return "未发现需要整改的高风险项。"

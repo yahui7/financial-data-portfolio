@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>评估历史 — 金融合规智能平台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
+.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 0 32px; display: flex; align-items: center; gap: 16px; height: 56px; }
+.header a { color: #7eb8da; text-decoration: none; font-size: 0.82rem; }
+.header h1 { font-size: 1.1rem; font-weight: 600; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.tab { padding: 9px 24px; border: 1px solid #d9d9d9; background: #fff; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all 0.15s; }
+.tab:hover { border-color: #4a90d9; color: #4a90d9; }
+.tab.active { background: #1a1f3a; color: #fff; border-color: #1a1f3a; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.panel { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.panel h3 { font-size: 0.95rem; margin-bottom: 14px; }
+
+/* 历史列表 */
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.history-table th { background: #fafafa; padding: 10px 14px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e8e8e8; font-size: 0.8rem; }
+.history-table td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.history-table tr:hover td { background: #fafbff; }
+.history-table tr.expanded td { background: #f6f8ff; border-bottom: none; }
+.risk-tag { font-weight: 700; font-size: 0.78rem; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+.tag-high { background: #fff2f0; color: #e74c3c; }
+.tag-mid  { background: #fffbe6; color: #faad14; }
+.tag-low  { background: #f6ffed; color: #52c41a; }
+
+/* 展开的详情行 */
+.detail-row { display: none; }
+.detail-row.show { display: table-row; }
+.detail-row td { padding: 0 14px 16px; background: #f6f8ff; border-bottom: 1px solid #e8e8e8; }
+.detail-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.detail-dim { border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px; }
+.detail-dim .dd-name { font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; }
+.detail-dim .dd-score { font-size: 1.4rem; font-weight: 700; }
+.detail-dim .dd-items { font-size: 0.78rem; color: #888; margin-top: 6px; }
+
+/* 趋势图 */
+#trendChart { width: 100%; height: 400px; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.filter-btn { padding: 5px 14px; border: 1px solid #d9d9d9; border-radius: 14px; background: #fff; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+.filter-btn:hover { border-color: #4a90d9; color: #4a90d9; }
+.filter-btn.active { background: #1a1f3a; color: #fff; border-color: #1a1f3a; }
+
+/* 对比 */
+.compare-select { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.compare-select select { padding: 8px 12px; border-radius: 6px; border: 1px solid #d9d9d9; font-size: 0.85rem; min-width: 280px; }
+.compare-select .vs { font-weight: 700; color: #999; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.compare-card { border: 1px solid #e8e8e8; border-radius: 10px; padding: 20px; text-align: center; }
+.compare-card .cc-date { font-size: 0.78rem; color: #999; }
+.compare-card .cc-score { font-size: 2.5rem; font-weight: 700; margin: 8px 0; }
+.compare-card .cc-level { font-size: 0.9rem; }
+.compare-diff { margin-top: 16px; }
+.compare-diff .cd-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+.compare-diff .cd-label { font-size: 0.82rem; color: #888; min-width: 40px; }
+.compare-diff .cd-arrow { font-size: 0.9rem; font-weight: 700; }
+
+.btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+.btn-primary { background: #1a1f3a; color: #fff; }
+.btn-primary:hover { background: #2a3050; }
+
+.empty-state { text-align: center; padding: 60px; color: #bbb; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.footer { text-align: center; padding: 20px; color: #bbb; font-size: 0.75rem; }
+
+.nav-steps { display: flex; align-items: center; justify-content: space-between; padding: 16px 40px; margin-bottom: 20px; }
+.nav-step { flex: 0 0 auto; padding: 10px 20px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; text-decoration: none; transition: all 0.2s; white-space: nowrap; text-align: center; min-width: 140px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
+.nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+.nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
+.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
+.nav-connector.done { border-color: #b7eb8f; border-style: solid; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/aml/">← 评估</a>
+  <h1>评估历史与趋势</h1>
+</div>
+
+<div class="container">
+
+  <div class="nav-steps">
+    <a href="/import/" class="nav-step done">✓ 数据导入</a>
+    <span class="nav-connector done"></span>
+    <a href="/aml/items.html" class="nav-step done">✓ 评估指标</a>
+    <span class="nav-connector done"></span>
+    <span class="nav-step active">● 执行评估</span>
+    <span class="nav-connector"></span>
+    <span class="nav-step wait">○ 报告生成</span>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('history')">📋 评估记录</div>
+    <div class="tab" onclick="switchTab('trend')">📈 趋势分析</div>
+    <div class="tab" onclick="switchTab('compare')">⚖ 对比分析</div>
+  </div>
+
+  <!-- 评估记录 -->
+  <div class="tab-content active" id="tab-history">
+    <div class="panel">
+      <h3>评估记录</h3>
+      <div id="historyContent"></div>
+    </div>
+  </div>
+
+  <!-- 趋势分析 -->
+  <div class="tab-content" id="tab-trend">
+    <div class="panel">
+      <h3>评分趋势</h3>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="loadTrend(0)">全部</button>
+        <button class="filter-btn" onclick="loadTrend(3)">最近3个月</button>
+        <button class="filter-btn" onclick="loadTrend(6)">最近6个月</button>
+        <button class="filter-btn" onclick="loadTrend(12)">最近12次</button>
+      </div>
+      <div id="trendChart"></div>
+    </div>
+  </div>
+
+  <!-- 对比分析 -->
+  <div class="tab-content" id="tab-compare">
+    <div class="panel">
+      <h3>两次评估对比</h3>
+      <div class="compare-select">
+        <span>评估A：</span>
+        <select id="compareA"></select>
+        <span class="vs">VS</span>
+        <span>评估B：</span>
+        <select id="compareB"></select>
+        <button class="btn btn-primary" onclick="runCompare()">对比</button>
+      </div>
+      <div id="compareResult"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">© 2026 金融合规智能平台</div>
+
+<script>
+let trendChart = null;
+let historyData = [];
+
+// 加载历史数据
+async function loadHistory() {
+  const r = await fetch('/api/aml/history?limit=50');
+  const d = await r.json();
+  historyData = d.history || [];
+  renderHistory();
+  populateCompareSelects();
+}
+
+function renderHistory() {
+  const div = document.getElementById('historyContent');
+  if (historyData.length === 0) {
+    div.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div style="font-size:0.9rem">暂无评估记录，请先执行评估</div></div>';
+    return;
+  }
+  const presetNames = { preset_securities: '基金模板', preset_bank: '银行模板', preset_insurance: '保险模板' };
+  let html = '<table class="history-table"><thead><tr><th>评估日期</th><th>模板</th><th>综合评分</th><th>风险等级</th><th>客户</th><th>交易</th></tr></thead><tbody>';
+  historyData.forEach((h, idx) => {
+    const tag = h.risk_level === '高' ? 'tag-high' : h.risk_level === '中' ? 'tag-mid' : 'tag-low';
+    html += `<tr onclick="toggleDetail(${idx}, this)"><td>${h.assess_date}</td><td>${presetNames[h.preset_id] || h.preset_id}</td><td style="font-weight:700">${h.overall_score}</td><td><span class="risk-tag ${tag}">${h.risk_level}</span></td><td>${h.customer_count}</td><td>${h.trans_count}</td></tr>`;
+    html += `<tr class="detail-row" id="detail-${idx}"><td colspan="6"><div class="detail-grid" id="detail-grid-${idx}"></div></td></tr>`;
+  });
+  html += '</tbody></table>';
+  div.innerHTML = html;
+}
+
+async function toggleDetail(idx, tr) {
+  const detailRow = document.getElementById('detail-' + idx);
+  if (detailRow.classList.contains('show')) {
+    detailRow.classList.remove('show');
+    tr.classList.remove('expanded');
+    return;
+  }
+  // 加载详情
+  const h = historyData[idx];
+  const r = await fetch(`/api/aml/history/${h.id}`);
+  const d = await r.json();
+  if (d.status !== 'ok') return;
+  const rec = d.record;
+  const colors = ['#4a90e2','#e67e22','#7b68ee','#2ecc71'];
+  const dimNames = ['客户风险','产品/业务风险','渠道风险','地域风险'];
+  const dimKeys = ['customer','product','channel','geography'];
+  document.getElementById('detail-grid-' + idx).innerHTML = dimKeys.map((dk, i) => {
+    const score = rec.scores[dk] || 0;
+    const dim = rec.dimensions[dk] || {};
+    const items = dim.items || [];
+    const cls = score <= 30 ? '#52c41a' : score <= 60 ? '#faad14' : '#e74c3c';
+    return `<div class="detail-dim" style="border-left:3px solid ${colors[i]}">
+      <div class="dd-name">${dimNames[i]}</div>
+      <div class="dd-score" style="color:${cls}">${score}</div>
+      <div class="dd-items">${items.slice(0,3).map(it => `· ${it.name}: ${it.risk}`).join('<br>')}</div>
+    </div>`;
+  }).join('');
+  detailRow.classList.add('show');
+  tr.classList.add('expanded');
+}
+
+// ── 趋势 ──
+async function loadTrend(months) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const limit = months || 50;
+  const r = await fetch(`/api/aml/history/trend?limit=${limit}`);
+  const d = await r.json();
+  renderTrend(d.trend || []);
+}
+
+function renderTrend(data) {
+  if (!trendChart) trendChart = echarts.init(document.getElementById('trendChart'));
+  if (data.length === 0) {
+    trendChart.setOption({ title: { text: '暂无趋势数据', left: 'center', top: 'center', textStyle: { color: '#bbb' } } });
+    return;
+  }
+  trendChart.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['综合评分','客户风险','产品风险','渠道风险','地域风险'], bottom: 0 },
+    grid: { left: 40, right: 20, top: 20, bottom: 40 },
+    xAxis: { type: 'category', data: data.map(d => d.date.slice(0,10)), axisLabel: { rotate: 30, fontSize: 10 } },
+    yAxis: { type: 'value', min: 0, max: 100, axisLabel: { formatter: '{value}' } },
+    series: [
+      { name: '综合评分', type: 'line', data: data.map(d => d.overall), lineStyle: { width: 3, color: '#1a1f3a' }, itemStyle: { color: '#1a1f3a' }, symbol: 'circle', symbolSize: 6 },
+      { name: '客户风险', type: 'line', data: data.map(d => d.customer), lineStyle: { color: '#4a90e2' }, itemStyle: { color: '#4a90e2' } },
+      { name: '产品风险', type: 'line', data: data.map(d => d.product), lineStyle: { color: '#e67e22' }, itemStyle: { color: '#e67e22' } },
+      { name: '渠道风险', type: 'line', data: data.map(d => d.channel), lineStyle: { color: '#7b68ee' }, itemStyle: { color: '#7b68ee' } },
+      { name: '地域风险', type: 'line', data: data.map(d => d.geography), lineStyle: { color: '#2ecc71' }, itemStyle: { color: '#2ecc71' } },
+    ],
+  }, true);
+}
+
+// ── 对比 ──
+function populateCompareSelects() {
+  const html = historyData.map(h => `<option value="${h.id}">#${h.id} — ${h.assess_date} (${h.overall_score}分 ${h.risk_level})</option>`).join('');
+  document.getElementById('compareA').innerHTML = html;
+  document.getElementById('compareB').innerHTML = html;
+  if (historyData.length >= 2) {
+    document.getElementById('compareA').selectedIndex = 0;
+    document.getElementById('compareB').selectedIndex = 1;
+  }
+}
+
+async function runCompare() {
+  const id1 = document.getElementById('compareA').value;
+  const id2 = document.getElementById('compareB').value;
+  if (!id1 || !id2) return;
+  const r = await fetch(`/api/aml/compare?id1=${id1}&id2=${id2}`);
+  const d = await r.json();
+  if (d.status !== 'ok') { alert('对比失败'); return; }
+
+  const dimLabels = { overall: '综合评分', customer: '客户风险', product: '产品/业务风险', channel: '渠道风险', geography: '地域风险' };
+  let html = '<div class="compare-grid">';
+  html += `<div class="compare-card"><div class="cc-date">${d.assessment_a.date}</div><div class="cc-score">${d.assessment_a.overall_score}</div><div class="cc-level">${d.assessment_a.risk_level}</div></div>`;
+  html += `<div class="compare-card"><div class="cc-date">${d.assessment_b.date}</div><div class="cc-score">${d.assessment_b.overall_score}</div><div class="cc-level">${d.assessment_b.risk_level}</div></div>`;
+  html += '</div><div class="compare-diff"><h4 style="margin-bottom:8px">维度变化</h4>';
+  for (const [key, label] of Object.entries(dimLabels)) {
+    const diff = d.comparison[key];
+    const color = diff.direction === 'up' ? '#e74c3c' : diff.direction === 'down' ? '#52c41a' : '#999';
+    html += `<div class="cd-row"><span class="cd-label">${label}</span><span class="cd-arrow" style="color:${color}">${diff.label}</span></div>`;
+  }
+  html += '</div>';
+  document.getElementById('compareResult').innerHTML = html;
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+  if (name === 'trend' && !trendChart) loadTrend(0);
+}
+
+// 页面加载
+loadHistory();
+</script>
+</body>
+</html>

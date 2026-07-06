@@ -1,0 +1,2 @@
+customer_id,name,id_type,id_number,id_expiry_date,nationality,birth_date,occupation,risk_level,phone,email,address
+C001,张三,身份证,110101199001011234,2030-01-01,中国,1990-01-01,企业员工,低,13800138001,zhangsan@example.com,北京市朝阳区

@@ -1,0 +1,2 @@
+transaction_id,account_id,customer_id,transaction_type,amount,currency,counterparty_info,transaction_date,channel,purpose
+T001,A001,C001,申购,100000.00,CNY,某科技有限公司,2025-06-15,手机银行,购买理财产品

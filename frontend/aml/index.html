@@ -3,289 +3,420 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>反洗钱风险自评估</title>
+<title>公司洗钱风险自评估</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
-.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 64px; }
-.header a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
-.header h1 { font-size: 1.3rem; }
-.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; line-height: 1.6; }
 
-/* 工具栏 */
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
-.btn { padding: 9px 22px; border: none; border-radius: 6px; font-size: 0.9rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+/* 顶栏 */
+.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 0 32px; display: flex; align-items: center; gap: 20px; height: 56px; }
+.header a { color: #7eb8da; text-decoration: none; font-size: 0.82rem; }
+.header h1 { font-size: 1.1rem; font-weight: 600; }
+.header select { padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font-size: 0.82rem; cursor: pointer; }
+.header select option { color: #333; background: #fff; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+
+/* 按钮 */
+.btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
 .btn-primary { background: #1a1f3a; color: #fff; }
-.btn-primary:hover { background: #2a3050; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.assess-meta { color: #999; font-size: 0.8rem; margin-left: 12px; }
+.btn-primary:hover:not(:disabled) { background: #2a3050; }
+.btn-outline { background: #fff; color: #1a1f3a; border: 1px solid #d9d9d9; }
+.btn-outline:hover { border-color: #1a1f3a; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* 上部：综合评分 + 雷达图 两栏 */
-.top-row { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 24px; }
+/* 操作栏 */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.assess-meta { color: #999; font-size: 0.8rem; margin-left: auto; }
 
-/* 左侧综合评分 */
-.overall-panel { background: #fff; border-radius: 10px; padding: 32px 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; justify-content: center; }
-.overall-panel .big-score { font-size: 5rem; font-weight: 700; line-height: 1; }
-.overall-panel .big-level { font-size: 1.2rem; font-weight: 700; margin: 8px 0 16px; padding: 4px 20px; border-radius: 14px; display: inline-block; }
-.overall-panel .big-bar { width: 80%; max-width: 220px; height: 8px; border-radius: 4px; background: #f0f0f0; margin: 0 auto 20px; overflow: hidden; }
-.overall-panel .big-bar .fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
-.overall-panel .meta-info { font-size: 0.8rem; color: #aaa; margin-top: 8px; }
-.overall-panel .data-snippets { display: flex; justify-content: center; gap: 16px; margin-top: 16px; flex-wrap: wrap; }
-.overall-panel .data-snippet { text-align: center; }
-.overall-panel .data-snippet .dsnum { font-size: 1.3rem; font-weight: 700; color: #555; }
-.overall-panel .data-snippet .dslbl { font-size: 0.7rem; color: #bbb; }
+/* 概览区：三列 */
+.overview { display: grid; grid-template-columns: 280px 1fr 260px; gap: 20px; margin-bottom: 20px; }
+.panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 
-.level-high { color: #e74c3c; }
-.level-mid  { color: #faad14; }
-.level-low  { color: #52c41a; }
-.level-badge-high { background: #fff2f0; color: #e74c3c; border: 1px solid #ffa39e; }
-.level-badge-mid  { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
-.level-badge-low  { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
-.bar-high { background: #e74c3c; }
-.bar-mid  { background: #faad14; }
-.bar-low  { background: #52c41a; }
+/* 综合评分 */
+.score-panel { padding: 28px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-panel .score-label { font-size: 0.85rem; color: #888; margin-bottom: 8px; font-weight: 600; }
+.score-panel .big-score { font-size: 5rem; font-weight: 700; line-height: 1; transition: color 0.5s; }
+.score-panel .risk-badge { font-size: 0.95rem; font-weight: 700; padding: 4px 18px; border-radius: 14px; margin: 10px 0 14px; display: inline-block; }
+.score-panel .score-bar { width: 80%; height: 6px; border-radius: 3px; background: #f0f0f0; overflow: hidden; margin-bottom: 6px; }
+.score-panel .score-bar .fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.score-panel .score-max { font-size: 0.72rem; color: #bbb; }
+.score-panel .score-change { font-size: 0.82rem; font-weight: 600; margin-top: 10px; }
+.score-panel .score-date { font-size: 0.72rem; color: #bbb; margin-top: 4px; }
 
-/* 雷达图 */
-.radar-panel { background: #fff; border-radius: 10px; padding: 20px 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.radar-panel h3 { font-size: 0.95rem; color: #333; margin-bottom: 4px; padding-left: 8px; }
-#radarChart { width: 100%; height: 380px; }
+/* 颜色 */
+.level-low { color: #52c41a; } .level-mid { color: #faad14; } .level-high { color: #e74c3c; }
+.badge-low { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+.badge-mid  { background: #fffbe6; color: #faad14; border: 1px solid #ffe58f; }
+.badge-high { background: #fff2f0; color: #e74c3c; border: 1px solid #ffa39e; }
+.bar-low { background: #52c41a; } .bar-mid { background: #faad14; } .bar-high { background: #e74c3c; }
 
-/* 评估维度区 */
-.dim-section { background: #fff; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
-.dim-header { padding: 18px 24px; display: flex; align-items: center; gap: 16px; cursor: default; border-bottom: 1px solid #f5f5f5; }
-.dim-header .dnum { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #fff; flex-shrink: 0; }
-.dim-header .dtitle { font-size: 1rem; font-weight: 600; flex: 1; }
-.dim-header .dscore { text-align: right; }
-.dim-header .dscore .dsval { font-size: 1.5rem; font-weight: 700; }
-.dim-header .dscore .dslbl { font-size: 0.73rem; color: #999; }
+/* 雷达 */
+.radar-panel { padding: 16px 12px; }
+.radar-panel h3 { font-size: 0.9rem; color: #555; padding-left: 12px; margin-bottom: 0; }
+#radarChart { width: 100%; height: 320px; }
+
+/* 关键发现 */
+.findings-panel { padding: 20px; }
+.findings-panel h3 { font-size: 0.9rem; color: #555; margin-bottom: 16px; }
+.finding-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+.finding-item:last-child { border-bottom: none; }
+.finding-count { font-size: 1.6rem; font-weight: 700; min-width: 40px; text-align: center; }
+.finding-label { font-size: 0.82rem; color: #888; }
+.top-risk { margin-top: 16px; padding: 12px; background: #fff2f0; border-radius: 8px; font-size: 0.82rem; color: #cf1322; line-height: 1.5; }
+
+/* 数据概览条 */
+.data-bar { display: flex; gap: 32px; justify-content: center; padding: 14px 24px; background: #fff; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.data-item { text-align: center; }
+.data-item .dval { font-size: 1.3rem; font-weight: 700; color: #333; }
+.data-item .dlbl { font-size: 0.72rem; color: #bbb; }
+
+/* 维度卡片 */
+.dim-section { background: #fff; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; transition: box-shadow 0.2s; }
+.dim-section:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.dim-header { padding: 16px 24px; display: flex; align-items: center; gap: 14px; cursor: pointer; user-select: none; border-left: 4px solid transparent; transition: border-color 0.2s; }
+.dim-header .dnum { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; color: #fff; flex-shrink: 0; }
+.dim-header .dtitle { font-size: 0.95rem; font-weight: 600; flex: 1; }
 .dim-header .dbar-wrap { width: 100px; height: 6px; border-radius: 3px; background: #f0f0f0; overflow: hidden; }
-.dim-header .dbar-wrap .fill { height: 100%; border-radius: 3px; }
+.dim-header .dbar-wrap .fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+.dim-header .dscore { text-align: right; min-width: 70px; }
+.dim-header .dscore .dsval { font-size: 1.4rem; font-weight: 700; }
+.dim-header .dscore .dslbl { font-size: 0.72rem; color: #999; }
+.dim-header .dtoggle { font-size: 0.7rem; color: #bbb; transition: transform 0.2s; }
+.dim-section.collapsed .dtoggle { transform: rotate(-90deg); }
+.dim-section.collapsed .dim-body { display: none; }
 
-.dim-body { padding: 16px 24px 20px; }
-.dim-body .dim-summary { font-size: 0.82rem; color: #999; margin-bottom: 12px; }
-.assess-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.assess-table th { background: #fafafa; padding: 10px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e8e8e8; font-size: 0.82rem; }
-.assess-table td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+.dim-body { padding: 8px 24px 20px; }
+.dim-summary { font-size: 0.8rem; color: #999; margin-bottom: 10px; }
+.assess-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.assess-table th { background: #fafafa; padding: 9px 12px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #e8e8e8; font-size: 0.8rem; }
+.assess-table td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
 .assess-table tr:last-child td { border-bottom: none; }
-.assess-table .arisk { font-weight: 700; font-size: 0.8rem; }
+.risk-tag { font-weight: 700; font-size: 0.78rem; padding: 2px 10px; border-radius: 10px; display: inline-block; }
+.risk-tag-high { background: #fff2f0; color: #e74c3c; }
+.risk-tag-mid  { background: #fffbe6; color: #faad14; }
+.risk-tag-low  { background: #f6ffed; color: #52c41a; }
 
-/* 建议区 */
-.rec-panel { background: #fff; border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+.dim-recs { margin-top: 12px; padding-top: 10px; border-top: 1px solid #f5f5f5; }
+.dim-recs .rectitle { font-size: 0.8rem; font-weight: 600; color: #888; margin-bottom: 6px; }
+.dim-recs li { font-size: 0.82rem; color: #666; padding: 3px 0; margin-left: 16px; }
+
+/* 整改建议汇总 */
+.rec-panel { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
 .rec-panel h3 { font-size: 1rem; margin-bottom: 14px; }
 .rec-list { list-style: none; }
-.rec-list li { padding: 9px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.88rem; display: flex; align-items: flex-start; gap: 10px; }
+.rec-list li { padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 0.86rem; display: flex; align-items: flex-start; gap: 8px; }
 .rec-list li:last-child { border-bottom: none; }
-.rec-list .rnum { color: #1a1f3a; font-weight: 700; min-width: 22px; }
-.rec-list .rdim { font-size: 0.7rem; color: #999; background: #f5f5f5; padding: 2px 8px; border-radius: 8px; white-space: nowrap; margin-left: 6px; }
+.rec-dim-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; }
+.tag-cust { background: #e6f0ff; color: #4a90e2; }
+.tag-prod { background: #fff3e6; color: #e67e22; }
+.tag-chan { background: #f0ecff; color: #7b68ee; }
+.tag-geo  { background: #e6f9f0; color: #2ecc71; }
 
-.loading { text-align: center; padding: 80px; color: #999; }
-.error-msg { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 6px; padding: 12px 16px; color: #cf1322; margin-bottom: 16px; display: none; }
-.error-msg.show { display: block; }
-.footer { text-align: center; padding: 30px; color: #bbb; font-size: 0.75rem; }
+/* 空状态 */
+.empty-state { text-align: center; padding: 60px 20px; color: #bbb; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state .empty-text { font-size: 0.9rem; }
 
-.color-cust { background: #4a90e2; } .bar-cust { background: #4a90e2; }
-.color-prod { background: #e67e22; } .bar-prod { background: #e67e22; }
-.color-chan { background: #7b68ee; } .bar-chan { background: #7b68ee; }
-.color-geo  { background: #2ecc71; } .bar-geo  { background: #2ecc71; }
+.footer { text-align: center; padding: 20px; color: #bbb; font-size: 0.75rem; }
+
+/* 导航栏 */
+.nav-steps { display: flex; align-items: center; justify-content: space-between; padding: 16px 40px; margin-bottom: 20px; }
+.nav-step { flex: 0 0 auto; padding: 10px 20px; border-radius: 8px; font-size: 0.88rem; font-weight: 700; text-decoration: none; transition: all 0.2s; white-space: nowrap; text-align: center; min-width: 140px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
+.nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
+.nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
+.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
+.nav-connector.done { border-color: #b7eb8f; border-style: solid; }
+
+/* 维度颜色 */
+.color-cust { background: #4a90e2; } .bar-cust { background: #4a90e2; } .border-cust { border-left-color: #4a90e2 !important; }
+.color-prod { background: #e67e22; } .bar-prod { background: #e67e22; } .border-prod { border-left-color: #e67e22 !important; }
+.color-chan { background: #7b68ee; } .bar-chan { background: #7b68ee; } .border-chan { border-left-color: #7b68ee !important; }
+.color-geo  { background: #2ecc71; } .bar-geo  { background: #2ecc71; } .border-geo  { border-left-color: #2ecc71 !important; }
+
+@media (max-width: 900px) {
+  .overview { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <a href="/products/">← 作品集</a>
-  <h1>🔐 反洗钱风险自评估</h1>
+  <a href="/">← 首页</a>
+  <h1>公司洗钱风险自评估</h1>
   <span style="flex:1"></span>
-  <a href="/report/" style="background:rgba(126,184,218,0.15);color:#7eb8da;text-decoration:none;font-size:1.05rem;padding:9px 22px;border-radius:8px;font-weight:600;border:1px solid rgba(126,184,218,0.3);white-space:nowrap" onmouseover="this.style.background='rgba(126,184,218,0.25)'" onmouseout="this.style.background='rgba(126,184,218,0.15)'">📄 报告生成 →</a>
+  <a href="/aml/history.html" style="font-size:0.82rem;opacity:0.7">📈 评估历史</a>
 </div>
 
 <div class="container">
-  <div class="error-msg" id="errorMsg"></div>
 
+  <!-- 导航栏 -->
+  <div class="nav-steps">
+    <a href="/import/" class="nav-step done">✓ 数据导入</a>
+    <span class="nav-connector done"></span>
+    <a href="/aml/items.html" class="nav-step done">✓ 评估指标</a>
+    <span class="nav-connector done"></span>
+    <span class="nav-step active">● 执行评估</span>
+    <span class="nav-connector"></span>
+    <span class="nav-step wait">○ 报告生成</span>
+  </div>
+
+  <!-- 操作栏 -->
   <div class="toolbar">
+    <span style="font-size:0.85rem;color:#333;font-weight:600">选择模板</span>
+    <select id="presetSelect" onchange="onPresetChange()" style="padding:8px 12px;border-radius:6px;border:1px solid #d9d9d9;font-size:0.85rem;background:#fff;cursor:pointer">
+      <option value="preset_securities">基金模板</option>
+      <option value="preset_bank">银行模板</option>
+      <option value="preset_insurance">保险模板</option>
+    </select>
     <button class="btn btn-primary" id="assessBtn" onclick="runAssess()">🔍 执行评估</button>
+    <button class="btn btn-outline" id="wordBtn" disabled onclick="downloadWord()">📄 下载Word报告</button>
     <span class="assess-meta" id="assessMeta"></span>
   </div>
 
-  <!-- 上部：综合评分 + 雷达图 -->
-  <div class="top-row" id="topRow" style="display:none">
-    <div class="overall-panel" id="overallPanel"></div>
-    <div class="radar-panel">
-      <h3>📡 四维风险雷达图</h3>
+  <!-- 概览区 -->
+  <div class="overview" id="overviewRow" style="display:none">
+    <div class="panel score-panel" id="scorePanel"></div>
+    <div class="panel radar-panel">
+      <h3>四维风险雷达</h3>
       <div id="radarChart"></div>
     </div>
+    <div class="panel findings-panel" id="findingsPanel"></div>
   </div>
 
-  <!-- 评估详情（四块） -->
-  <div id="dimSections" style="display:none"></div>
+  <!-- 数据概览条 -->
+  <div class="data-bar" id="dataBar" style="display:none"></div>
 
-  <!-- 整改建议 -->
+  <!-- 初始化提示 -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔐</div>
+    <div class="empty-text">选择评估模板，点击"执行评估"开始</div>
+  </div>
+
+  <!-- 四维度详情 -->
+  <div id="dimSections"></div>
+
+  <!-- 整改建议汇总 -->
   <div class="rec-panel" id="recPanel" style="display:none">
-    <h3>🛡️ 整改建议</h3>
+    <h3>🛡️ 整改建议汇总</h3>
     <ul class="rec-list" id="recList"></ul>
   </div>
+
 </div>
 
-<div class="footer"><p>Python FastAPI · ECharts · AI-Assisted | © 2026 王亚慧</p></div>
+<div class="footer">© 2026 金融合规智能平台</div>
 
 <script>
-const API = '/api/aml';
 let radarInst = null;
+let lastResult = null;
+let currentPreset = 'preset_securities';
+
+function onPresetChange() {
+  currentPreset = document.getElementById('presetSelect').value;
+}
 
 async function runAssess() {
   const btn = document.getElementById('assessBtn');
   btn.disabled = true; btn.textContent = '⏳ 评估中...';
-  document.getElementById('errorMsg').classList.remove('show');
 
   try {
-    const r = await fetch(`${API}/assess`);
+    const r = await fetch(`/api/aml/assess?preset_id=${currentPreset}`);
     const d = await r.json();
-    if (d.status === 'error') { showError(d.message); return; }
+    if (d.status !== 'ok') { alert('评估失败: ' + (d.message || '')); return; }
+    lastResult = d;
     renderAll(d);
-  } catch(e) { showError('评估请求失败: ' + e.message); }
+    document.getElementById('wordBtn').disabled = false;
+    document.getElementById('assessMeta').textContent = `评估时间: ${d.assessment_time}`;
+  } catch(e) { alert('请求失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '🔍 执行评估'; }
 }
 
-function showError(msg) {
-  const el = document.getElementById('errorMsg');
-  el.textContent = '❌ ' + msg; el.classList.add('show');
-}
-
-function levelClass(score) {
-  return score <= 30 ? 'level-low' : score <= 60 ? 'level-mid' : 'level-high';
-}
-function barClass(score) {
-  return score <= 30 ? 'bar-low' : score <= 60 ? 'bar-mid' : 'bar-high';
-}
-function levelName(score) {
-  return score <= 30 ? '低风险' : score <= 60 ? '中风险' : '高风险';
-}
-
 function renderAll(d) {
-  document.getElementById('assessMeta').textContent = `📅 ${d.assessment_time}`;
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('overviewRow').style.display = 'grid';
+  document.getElementById('dataBar').style.display = 'flex';
+  document.getElementById('dimSections').style.display = 'block';
+  document.getElementById('recPanel').style.display = 'block';
 
   const dims = d.dimensions;
   const dimKeys = ['customer','product','channel','geography'];
   const dimLabels = ['客户风险','产品/业务风险','渠道风险','地域风险'];
   const dimColors = ['color-cust','color-prod','color-chan','color-geo'];
+  const dimBars = ['bar-cust','bar-prod','bar-chan','bar-geo'];
+  const dimBorders = ['border-cust','border-prod','border-chan','border-geo'];
 
-  // ── 左侧：综合评分 ──
-  const ocls = levelClass(d.overall_score);
-  const obadge = ocls === 'level-low' ? 'level-badge-low' : ocls === 'level-mid' ? 'level-badge-mid' : 'level-badge-high';
-  document.getElementById('overallPanel').innerHTML = `
-    <div style="font-size:0.95rem;color:#333;margin-bottom:12px;font-weight:600">综合风险评分</div>
-    <div class="big-score ${ocls}">${d.overall_score}</div>
-    <div class="big-level ${obadge}">${d.risk_level_name}</div>
-    <div class="big-bar"><div class="fill ${barClass(d.overall_score)}" style="width:${d.overall_score}%"></div></div>
-    <div style="font-size:0.75rem;color:#bbb">${d.overall_score} / 100</div>
-    <div class="meta-info">${d.assessment_time}</div>
-    <div class="data-snippets">
-      <div class="data-snippet"><div class="dsnum" style="color:#bbb">${d.data_summary.customers}</div><div class="dslbl">👤 客户</div></div>
-      <div class="data-snippet"><div class="dsnum" style="color:#bbb">${d.data_summary.accounts}</div><div class="dslbl">💳 账户</div></div>
-      <div class="data-snippet"><div class="dsnum" style="color:#bbb">${d.data_summary.transactions}</div><div class="dslbl">💸 交易</div></div>
-      <div class="data-snippet"><div class="dsnum" style="color:#bbb">${d.data_summary.products}</div><div class="dslbl">📦 产品</div></div>
-    </div>
+  // ── 综合评分 ──
+  const cls = d.overall_score <= 30 ? 'level-low' : d.overall_score <= 60 ? 'level-mid' : 'level-high';
+  const badge = d.overall_score <= 30 ? 'badge-low' : d.overall_score <= 60 ? 'badge-mid' : 'badge-high';
+  const barCls = d.overall_score <= 30 ? 'bar-low' : d.overall_score <= 60 ? 'bar-mid' : 'bar-high';
+  document.getElementById('scorePanel').innerHTML = `
+    <div class="score-label">综合风险评分</div>
+    <div class="big-score ${cls}" id="bigScore">0</div>
+    <div class="risk-badge ${badge}">${d.risk_level_name}</div>
+    <div class="score-bar"><div class="fill ${barCls}" id="scoreBar" style="width:0%"></div></div>
+    <div class="score-max">${d.overall_score} / 100</div>
+    <div class="score-change" id="scoreChange">—</div>
+    <div class="score-date">${d.assessment_time}</div>
   `;
+  // 数字滚动动画
+  animateNumber('bigScore', 0, d.overall_score, 800);
+  setTimeout(() => { document.getElementById('scoreBar').style.width = d.overall_score + '%'; }, 200);
 
-  // ── 右侧：雷达图（轴上标注分数+等级）──
-  document.getElementById('topRow').style.display = 'grid';
-  const el = document.getElementById('radarChart');
-  if (!radarInst) radarInst = echarts.init(el);
-
-  const scoreColors = { '高': '#e74c3c', '高风险': '#e74c3c', '中': '#faad14', '中风险': '#faad14', '低': '#52c41a', '低风险': '#52c41a' };
-  const dimScores = dimKeys.map(k => dims[k].score);
-  const dimLevels = dimKeys.map(k => levelName(dims[k].score));
-
+  // ── 雷达图 ──
+  if (!radarInst) radarInst = echarts.init(document.getElementById('radarChart'));
   radarInst.setOption({
-    tooltip: {
-      trigger: 'item',
-      formatter: function(p) {
-        if (p.name === '本次评估' && p.value) {
-          let html = '<b>本次评估</b><br/>';
-          dimKeys.forEach((k, i) => {
-            html += `${dimLabels[i]}: <b>${p.value[i]}</b> ${dimLevels[i]}<br/>`;
-          });
-          return html;
-        }
-        return p.name + ': ' + p.value;
-      }
-    },
+    tooltip: { trigger: 'item' },
     radar: {
-      center: ['50%', '52%'],
-      radius: '55%',
+      center: ['50%', '55%'], radius: '60%',
       indicator: dimKeys.map((k, i) => ({
-        name: dimLabels[i] + '\n' + dims[k].score + '分 ' + levelName(dims[k].score),
+        name: dimLabels[i] + '\n' + dims[k].score + '分',
         max: 100,
       })),
-      axisName: {
-        color: '#333', fontSize: 14, fontWeight: 'bold',
-        overflow: 'truncate', width: 90,
-      },
+      axisName: { color: '#333', fontSize: 13, fontWeight: 'bold' },
       splitArea: { areaStyle: { color: ['#fff','#fafafa','#fff','#fafafa','#fff'] } },
     },
     series: [{
       type: 'radar',
-      data: [{ value: dimScores, name: '本次评估',
-               areaStyle: { color: 'rgba(250,173,20,0.15)' },
-               lineStyle: { color: '#fa8c16', width: 2 } }],
-      symbol: 'circle', symbolSize: 7,
-      itemStyle: { color: '#fa8c16' },
+      data: [{ value: dimKeys.map(k => dims[k].score), name: '本次评估',
+               areaStyle: { color: 'rgba(74,144,226,0.12)' },
+               lineStyle: { color: '#4a90e2', width: 2 } }],
+      symbol: 'circle', symbolSize: 6,
+      itemStyle: { color: '#4a90e2' },
     }],
   }, true);
 
-  // 四块评估详情
-  document.getElementById('dimSections').style.display = 'block';
+  // ── 关键发现 ──
+  let allItems = [];
+  dimKeys.forEach(k => { allItems = allItems.concat(dims[k].items); });
+  const highCount = allItems.filter(i => i.risk === '高').length;
+  const midCount = allItems.filter(i => i.risk === '中').length;
+  const lowCount = allItems.filter(i => i.risk === '低').length;
+  const topRisk = allItems.filter(i => i.risk === '高').slice(0, 1);
+  document.getElementById('findingsPanel').innerHTML = `
+    <h3>关键发现</h3>
+    <div class="finding-item"><span class="finding-count" style="color:#e74c3c">${highCount}</span><span class="finding-label">项高风险</span></div>
+    <div class="finding-item"><span class="finding-count" style="color:#faad14">${midCount}</span><span class="finding-label">项中风险</span></div>
+    <div class="finding-item"><span class="finding-count" style="color:#52c41a">${lowCount}</span><span class="finding-label">项低风险</span></div>
+    ${topRisk.length > 0 ? `<div class="top-risk">⚠ 最突出风险：<b>${topRisk[0].name}</b><br>${topRisk[0].remark}</div>` : '<div style="margin-top:16px;color:#52c41a;font-size:0.85rem">✅ 无高风险项</div>'}
+  `;
+
+  // ── 数据概览条 ──
+  document.getElementById('dataBar').innerHTML = `
+    <div class="data-item"><div class="dval">${d.data_summary.customers}</div><div class="dlbl">👤 客户</div></div>
+    <div class="data-item"><div class="dval">${d.data_summary.accounts}</div><div class="dlbl">💳 账户</div></div>
+    <div class="data-item"><div class="dval">${d.data_summary.transactions}</div><div class="dlbl">💸 交易</div></div>
+    <div class="data-item"><div class="dval">${d.data_summary.products}</div><div class="dlbl">📦 产品</div></div>
+  `;
+
+  // ── 四维度卡片 ──
   document.getElementById('dimSections').innerHTML = dimKeys.map((k, i) => {
     const dim = dims[k];
+    const dimCls = dim.score <= 30 ? 'level-low' : dim.score <= 60 ? 'level-mid' : 'level-high';
     return `
-    <div class="dim-section">
-      <div class="dim-header">
+    <div class="dim-section ${dimBorders[i]}">
+      <div class="dim-header" onclick="this.parentElement.classList.toggle('collapsed')">
         <div class="dnum ${dimColors[i]}">${i+1}</div>
         <div class="dtitle">${dimLabels[i]}</div>
-        <div class="dbar-wrap"><div class="fill ${barClass(dim.score)}" style="width:${dim.score}%"></div></div>
+        <div class="dbar-wrap"><div class="fill ${dimBars[i]}" style="width:0%" id="dimBar${i}"></div></div>
         <div class="dscore">
-          <div class="dsval ${levelClass(dim.score)}">${dim.score}</div>
-          <div class="dslbl">${levelName(dim.score)}</div>
+          <div class="dsval ${dimCls}" id="dimScore${i}">0</div>
+          <div class="dslbl">分</div>
         </div>
+        <span class="dtoggle">▼</span>
       </div>
       <div class="dim-body">
         <div class="dim-summary">${dim.summary}</div>
         <table class="assess-table">
-          <thead><tr><th style="width:35%">评估项</th><th style="width:10%">风险</th><th style="width:25%">数据</th><th>说明</th></tr></thead>
+          <thead><tr><th style="width:28%">评估项</th><th style="width:8%">风险</th><th style="width:30%">数据详情</th><th>说明</th></tr></thead>
           <tbody>
-            ${dim.items.map(item => `
-            <tr>
-              <td><b>${item.name}</b></td>
-              <td><span class="arisk ${levelClass(item.risk==='高'?85:item.risk==='中'?50:15)}">${item.risk}</span></td>
-              <td style="font-size:0.82rem">${item.detail}</td>
-              <td style="font-size:0.8rem;color:#888">${item.remark}</td>
-            </tr>`).join('')}
+            ${dim.items.map(it => {
+              const rcls = it.risk === '高' ? 'risk-tag-high' : it.risk === '中' ? 'risk-tag-mid' : 'risk-tag-low';
+              return `<tr>
+                <td><b>${it.name}</b></td>
+                <td><span class="risk-tag ${rcls}">${it.risk}</span></td>
+                <td style="font-size:0.82rem">${it.detail}</td>
+                <td style="font-size:0.8rem;color:#888">${it.remark}</td>
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
+        ${dim.recommendations && dim.recommendations.length > 0 ? `
+        <div class="dim-recs">
+          <div class="rectitle">本维度建议</div>
+          <ul>${dim.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+        </div>` : ''}
       </div>
     </div>`;
   }).join('');
 
-  // 整改建议
-  document.getElementById('recPanel').style.display = 'block';
+  // 维度分数和进度条动画
+  setTimeout(() => {
+    dimKeys.forEach((k, i) => {
+      animateNumber('dimScore' + i, 0, dims[k].score, 600);
+      document.getElementById('dimBar' + i).style.width = dims[k].score + '%';
+    });
+  }, 300);
+
+  // ── 整改建议汇总 ──
+  const tagMap = { customer: 'tag-cust', product: 'tag-prod', channel: 'tag-chan', geography: 'tag-geo' };
+  const dimNameMap = { customer: '客户', product: '产品', channel: '渠道', geography: '地域' };
   document.getElementById('recList').innerHTML = d.recommendations.map((rec, i) => {
-    // 尝试匹配建议来源维度
-    let dimTag = '';
-    for (const [dk, dim] of Object.entries(dims)) {
-      if (dim.recommendations && dim.recommendations.includes(rec)) {
-        const tagNames = {customer:'客户风险',product:'产品风险',channel:'渠道风险',geography:'地域风险'};
-        dimTag = `<span class="rdim">${tagNames[dk]||dk}</span>`;
-        break;
+    let tagCls = '', tagName = '';
+    for (const dk of dimKeys) {
+      if (dims[dk].recommendations && dims[dk].recommendations.includes(rec)) {
+        tagCls = tagMap[dk]; tagName = dimNameMap[dk]; break;
       }
     }
-    return `<li><span class="rnum">${i+1}.</span><span>${rec}${dimTag}</span></li>`;
+    return `<li><span style="color:#1a1f3a;font-weight:700;min-width:22px">${i+1}.</span><span style="flex:1">${rec}</span>${tagName ? `<span class="rec-dim-tag ${tagCls}">${tagName}</span>` : ''}</li>`;
   }).join('');
-
-  // 滚动到结果
 }
 
-// 页面加载后等待用户点击"执行评估"
+// 数字滚动动画
+function animateNumber(id, from, to, duration) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const start = performance.now();
+  function step(ts) {
+    const progress = Math.min((ts - start) / duration, 1);
+    const val = Math.round(from + (to - from) * progress);
+    el.textContent = to % 1 === 0 ? val : val.toFixed ? val : val;
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = to % 1 === 0 ? Math.round(to) : to.toFixed(1);
+  }
+  requestAnimationFrame(step);
+}
 
+function downloadWord() {
+  if (!lastResult) return;
+  const d = lastResult;
+  const sections = [
+    { title: '一、评估概要', content: `评估时间：${d.assessment_time}\n评估模板：${d.preset_id}\n数据范围：客户${d.data_summary.customers}人，账户${d.data_summary.accounts}个，交易${d.data_summary.transactions}笔，产品${d.data_summary.products}只` },
+    { title: '二、综合风险评级', content: `综合评分：${d.overall_score} 分\n风险等级：${d.risk_level_name}` },
+  ];
+  ['customer','product','channel','geography'].forEach(dk => {
+    const dim = d.dimensions[dk];
+    let content = `维度评分：${dim.score} 分\n${dim.summary}\n\n`;
+    dim.items.forEach(it => { content += `· [${it.risk}] ${it.name}: ${it.detail} — ${it.remark}\n`; });
+    sections.push({ title: dim.name, content });
+  });
+  sections.push({ title: '四、整改建议', content: d.recommendations.map((r,i) => `${i+1}. ${r}`).join('\n') });
+
+  fetch('/api/report/export-word', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: '公司洗钱风险自评估报告',
+      report_no: 'AML-' + new Date().toISOString().slice(0,10).replace(/-/g,''),
+      author: '合规部', date: d.assessment_time.slice(0,10),
+      template_id: 'tpl_quality', sections,
+    }),
+  }).then(r => r.blob()).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'AML评估报告.docx'; a.click();
+  });
+}
 </script>
 </body>
 </html>

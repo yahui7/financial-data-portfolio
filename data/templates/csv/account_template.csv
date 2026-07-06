@@ -1,0 +1,2 @@
+account_id,customer_id,product_id,account_type,status,balance,currency,open_date,close_date
+A001,C001,P001,个人账户,正常,500000.00,CNY,2024-01-15,

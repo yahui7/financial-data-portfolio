@@ -13,6 +13,7 @@ from backend.data_quality.router import router as quality_router
 from backend.aml_assessment.router import router as aml_router
 from backend.report_generator.router import router as report_router
 from backend.customer_monitor.router import router as monitor_router
+from backend.data_importer.router import router as importer_router
 
 
 @asynccontextmanager
@@ -44,6 +45,7 @@ app.include_router(quality_router, prefix="/api/quality", tags=["数据质量监
 app.include_router(aml_router, prefix="/api/aml", tags=["反洗钱风险评估"])
 app.include_router(report_router, prefix="/api/report", tags=["报告生成"])
 app.include_router(monitor_router, prefix="/api/monitor", tags=["客户风险监控"])
+app.include_router(importer_router, prefix="/api/import", tags=["数据导入"])
 
 
 @app.get("/api/health")
