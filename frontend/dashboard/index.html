@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据质量监控</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f0f2f5; color: #333; min-height: 100vh;
+}
+
+/* 顶栏 */
+.header {
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); border-bottom: none;
+  padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 64px;
+}
+.header a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
+.header a:hover { color: #a0d0ef; }
+.header h1 { font-size: 1.3rem; color: #fff; }
+.container { max-width: 1300px; margin: 0 auto; padding: 24px; }
+
+/* 工具栏 */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+.btn {
+  padding: 9px 22px; border: none; border-radius: 6px; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.2s; font-weight: 600;
+}
+.btn-primary { background: #1a1f3a; color: #fff; }
+.btn-primary:hover { background: #2a3050; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #d9d9d9; }
+.btn-outline:hover { border-color: #1890ff; color: #1890ff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#scanTime { color: #999; font-size: 0.8rem; margin-left: 8px; }
+
+/* 评分卡行 */
+.score-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+.score-card {
+  background: #fff; border: 1px solid #e8e8e8;
+  border-radius: 10px; padding: 22px 18px; text-align: center;
+  transition: box-shadow 0.3s; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.score-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.score-card .dlabel { font-size: 0.78rem; color: #999; margin-bottom: 10px; letter-spacing: 1px; }
+.score-card .dvalue { font-size: 2.4rem; font-weight: 700; margin-bottom: 8px; }
+.score-card .dbar {
+  height: 4px; border-radius: 2px; background: #f0f0f0;
+  margin: 8px 0; overflow: hidden;
+}
+.score-card .dbar .fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+.score-card .dstat { font-size: 0.72rem; color: #999; }
+
+.score-card.high .dvalue { color: #52c41a; }
+.score-card.high .dbar .fill { background: linear-gradient(90deg, #52c41a, #73d13d); }
+.score-card.mid  .dvalue { color: #faad14; }
+.score-card.mid  .dbar .fill { background: linear-gradient(90deg, #d48806, #faad14); }
+.score-card.low  .dvalue { color: #e74c3c; }
+.score-card.low  .dbar .fill { background: linear-gradient(90deg, #cf1322, #e74c3c); }
+
+/* 图表区 */
+.chart-panel {
+  background: #fff; border: 1px solid #e8e8e8;
+  border-radius: 10px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.chart-panel h3 { font-size: 0.95rem; color: #333; margin-bottom: 12px; }
+#trendChart { width: 100%; height: 380px; }
+
+/* 问题清单 */
+.issue-panel {
+  background: #fff; border: 1px solid #e8e8e8;
+  border-radius: 10px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.issue-panel .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.issue-panel h3 { font-size: 0.95rem; color: #333; }
+.filter-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-row select {
+  padding: 6px 10px; background: #fff; color: #333;
+  border: 1px solid #d9d9d9; border-radius: 4px; font-size: 0.82rem;
+}
+.filter-row select:focus { outline: none; border-color: #1890ff; }
+
+.issue-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0; font-size: 0.85rem;
+}
+.issue-item:last-child { border-bottom: none; }
+.issue-item .sev {
+  padding: 3px 10px; border-radius: 10px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+.sev-high { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.sev-mid  { background: rgba(250,173,20,0.2); color: #faad14; }
+.sev-low  { background: rgba(82,196,26,0.2); color: #52c41a; }
+.issue-item .info { flex: 1; min-width: 0; }
+.issue-item .info .title { font-weight: 600; color: #333; }
+.issue-item .info .meta { font-size: 0.75rem; color: #999; margin-top: 2px; }
+
+/* 问题展开 */
+.expand-issue { cursor: pointer; font-size: 0.7rem; color: #999; transition: transform 0.2s; user-select: none; padding: 4px; }
+.expand-issue.open { transform: rotate(90deg); }
+.samples-detail { display: none; background: #fafafa; border-radius: 6px; padding: 10px 14px; margin: 8px 0 4px 0; overflow-x: auto; }
+.samples-detail.show { display: block; }
+.samples-detail table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.samples-detail th { background: #f0f0f0; padding: 6px 8px; text-align: left; font-weight: 600; white-space: nowrap; border-bottom: 1px solid #e8e8e8; }
+.samples-detail td { padding: 5px 8px; border-bottom: 1px solid #f5f5f5; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+.samples-detail .null-cell { color: #e74c3c; font-style: italic; }
+.samples-detail .load-hint { text-align: center; color: #bbb; padding: 12px; font-size: 0.8rem; }
+
+/* 工单流 */
+.workflow { display: flex; gap: 3px; align-items: center; }
+.workflow .step {
+  width: 26px; height: 26px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 0.65rem;
+  font-weight: 700; cursor: pointer; transition: all 0.2s;
+}
+.workflow .step.done    { background: #f6ffed; color: #52c41a; border: 2px solid #52c41a; }
+.workflow .step.current { background: #e6f7ff; color: #1890ff; border: 2px solid #1890ff; }
+.workflow .step.pending { background: #fafafa; color: #ccc; border: 2px solid #e8e8e8; }
+.workflow .arrow { color: #d9d9d9; font-size: 0.65rem; }
+.workflow .step:hover { transform: scale(1.2); }
+
+.issue-item .actions { display: flex; align-items: center; gap: 8px; }
+
+.loading-wrap { text-align: center; padding: 80px; color: #999; font-size: 0.95rem; }
+.empty { text-align: center; padding: 40px; color: #bbb; font-size: 0.9rem; }
+.footer { text-align: center; padding: 30px; color: #bbb; font-size: 0.75rem; }
+
+@media (max-width: 900px) {
+  .score-row { grid-template-columns: repeat(3, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/products/">← 作品集</a>
+  <h1>📊 数据质量监控</h1>
+  <span style="flex:1"></span>
+  <a href="/report/" style="background:rgba(74,159,216,0.15);color:#4a9fd8;text-decoration:none;font-size:1.05rem;padding:9px 22px;border-radius:8px;transition:all 0.2s;font-weight:600;border:1px solid rgba(74,159,216,0.3);white-space:nowrap" onmouseover="this.style.background="rgba(74,159,216,0.25)"" onmouseout="this.style.background="rgba(74,159,216,0.15)"">📄 报告生成 →</a>
+</div>
+
+<div class="container">
+  <div class="toolbar">
+    <button class="btn btn-primary" id="scanBtn" onclick="runScan()">🔍 执行扫描</button>
+    <button class="btn btn-outline" onclick="refreshDashboard()">🔄 刷新</button>
+    <span id="scanTime"></span>
+  </div>
+
+  <!-- 评分卡 -->
+  <div class="score-row" id="scoreRow">
+    <div class="score-card"><div class="dlabel">完整性</div><div class="dvalue">--</div><div class="dbar"><div class="fill" style="width:0%"></div></div><div class="dstat">--</div></div>
+    <div class="score-card"><div class="dlabel">准确性</div><div class="dvalue">--</div><div class="dbar"><div class="fill" style="width:0%"></div></div><div class="dstat">--</div></div>
+    <div class="score-card"><div class="dlabel">一致性</div><div class="dvalue">--</div><div class="dbar"><div class="fill" style="width:0%"></div></div><div class="dstat">--</div></div>
+    <div class="score-card"><div class="dlabel">逻辑性</div><div class="dvalue">--</div><div class="dbar"><div class="fill" style="width:0%"></div></div><div class="dstat">--</div></div>
+    <div class="score-card"><div class="dlabel">综合得分</div><div class="dvalue">--</div><div class="dbar"><div class="fill" style="width:0%"></div></div><div class="dstat">4维度加权</div></div>
+  </div>
+
+  <!-- 趋势图 -->
+  <div class="chart-panel">
+    <h3>📈 30天质量趋势</h3>
+    <div id="trendChart"></div>
+  </div>
+
+  <!-- 问题清单 -->
+  <div class="issue-panel">
+    <div class="panel-head">
+      <h3>📋 问题清单 <span style="color:#5a6a7e;font-weight:400;font-size:0.85rem" id="issueCount"></span></h3>
+      <div class="filter-row">
+        <select id="filterDim" onchange="loadIssues()">
+          <option value="">全部维度</option><option value="完整性">完整性</option><option value="准确性">准确性</option>
+          <option value="一致性">一致性</option><option value="逻辑性">逻辑性</option>
+        </select>
+        <select id="filterSev" onchange="loadIssues()">
+          <option value="">全部严重性</option><option value="高">高</option><option value="中">中</option><option value="低">低</option>
+        </select>
+        <select id="filterStatus" onchange="loadIssues()">
+          <option value="">全部状态</option><option value="待派发">待派发</option><option value="已派发">已派发</option>
+          <option value="整改中">整改中</option><option value="待复核">待复核</option><option value="已归档">已归档</option>
+        </select>
+      </div>
+    </div>
+    <div id="issueList"><div class="empty">点击"执行扫描"查看问题</div></div>
+  </div>
+</div>
+
+<div class="footer"><p>Python FastAPI · SQLite · ECharts · AI-Assisted | © 2026 王亚慧</p></div>
+
+<script>
+const API = '/api/quality';
+const STATUSES = ['待派发', '已派发', '整改中', '待复核', '已归档'];
+let chartInst = null;
+
+async function init() { await refreshDashboard(); window.addEventListener('resize', () => chartInst?.resize()); }
+
+async function runScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true; btn.textContent = '⏳ 扫描中...';
+  try {
+    await fetch(`${API}/scan`);
+    await refreshDashboard();
+  } catch(e) { console.error(e); }
+  finally { btn.disabled = false; btn.textContent = '🔍 执行扫描'; }
+}
+
+async function refreshDashboard() { await Promise.all([loadScores(), loadHistory(), loadIssues()]); }
+
+async function loadScores() {
+  try {
+    const r = await fetch(`${API}/scores`); const d = await r.json();
+    const scores = d.scores || {};
+    document.getElementById('scanTime').textContent = d.scan_time ? '最后扫描: ' + d.scan_time : '';
+
+    // 同时获取规则明细，用于统计通过/失败
+    const rr = await fetch(`${API}/rules`); const rd = await rr.json();
+    const rules = rd.rules || [];
+    const dimCount = {};
+    const dimPass = {};
+    for (const rule of rules) {
+      const dk = rule.dimension_key;
+      dimCount[dk] = (dimCount[dk] || 0) + 1;
+      // 从scores反推：每条规则独立，用维度得分推算通过数
+      // 这里简化：从扫描结果判断
+      dimPass[dk] = dimPass[dk] || 0;
+    }
+
+    const cards = document.getElementById('scoreRow').children;
+    const keys = ['completeness','accuracy','consistency','logical','overall'];
+    const labels = ['完整性','准确性','一致性','逻辑性','综合得分'];
+
+    // 获取实际通过/失败数
+    try {
+      const sr = await fetch(`${API}/scan`);
+      const sd = await sr.json();
+      const ruleResults = sd.rules || [];
+      const dimStats = {};
+      for (const r of ruleResults) {
+        const dk = r.dimension_key;
+        if (!dimStats[dk]) dimStats[dk] = { total: 0, passed: 0 };
+        dimStats[dk].total++;
+        if (r.record_count === 0) dimStats[dk].passed++;
+      }
+
+      keys.forEach((k, i) => {
+        const v = scores[k] ?? 0;
+        const cls = v >= 90 ? 'high' : v >= 70 ? 'mid' : 'low';
+        cards[i].className = 'score-card ' + cls;
+        const stat = dimStats[k];
+        const statText = stat ? `${stat.passed}/${stat.total} 规则通过` : '4维度加权';
+        cards[i].innerHTML = `
+          <div class="dlabel">${labels[i]}</div>
+          <div class="dvalue">${v}%</div>
+          <div class="dbar"><div class="fill" style="width:${v}%"></div></div>
+          <div class="dstat">${statText}</div>`;
+      });
+    } catch(e) {
+      keys.forEach((k, i) => {
+        const v = scores[k] ?? 0;
+        const cls = v >= 90 ? 'high' : v >= 70 ? 'mid' : 'low';
+        cards[i].className = 'score-card ' + cls;
+        cards[i].innerHTML = `
+          <div class="dlabel">${labels[i]}</div>
+          <div class="dvalue">${v}%</div>
+          <div class="dbar"><div class="fill" style="width:${v}%"></div></div>
+          <div class="dstat">${dimCount[k] || '--'} 条规则</div>`;
+      });
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function loadHistory() {
+  try {
+    const r = await fetch(`${API}/history?limit=30`); const d = await r.json();
+    const history = d.history || [];
+    const dates = history.map(h => h.date);
+    const dims = ['completeness','accuracy','consistency','logical'];
+    const names = ['完整性','准确性','一致性','逻辑性'];
+    const colors = ['#52c41a','#4a9fd8','#faad14','#a855f7'];
+    const series = dims.map((dim, i) => ({
+      name: names[i], type: 'line', data: history.map(h => h[dim]),
+      smooth: true, symbol: 'circle', symbolSize: 4,
+      lineStyle: { width: 2, color: colors[i] },
+      itemStyle: { color: colors[i] },
+      areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,
+        [{offset:0, color: colors[i]+'33'},{offset:1, color: colors[i]+'05'}]) }
+    }));
+
+    const el = document.getElementById('trendChart');
+    if (!chartInst) chartInst = echarts.init(el);
+    chartInst.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#e8e8e8', textStyle: { color: '#333', fontSize: 12 } },
+      legend: { right: 10, top: 'center', orient: 'vertical', textStyle: { color: '#999', fontSize: 11 } },
+      grid: { left: 40, right: 120, top: 10, bottom: 50 },
+      xAxis: { type: 'category', data: dates, axisLabel: { color: '#999', fontSize: 10, rotate: 30, interval: 4, margin: 12, showMaxLabel: true }, axisLine: { lineStyle: { color: '#e8e8e8' } } },
+      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: '#999', formatter: '{value}%' }, splitLine: { lineStyle: { color: '#f0f0f0' } } },
+      series, color: colors,
+    }, true);
+  } catch(e) { console.error(e); }
+}
+
+async function loadIssues() {
+  const dim = document.getElementById('filterDim').value;
+  const sev = document.getElementById('filterSev').value;
+  const st = document.getElementById('filterStatus').value;
+  const params = new URLSearchParams();
+  if (dim) params.set('dimension', dim);
+  if (sev) params.set('severity', sev);
+  if (st) params.set('status', st);
+
+  try {
+    const r = await fetch(`${API}/issues?${params}`); const d = await r.json();
+    const issues = d.issues || [];
+    document.getElementById('issueCount').textContent = `(${issues.length}条)`;
+
+    const list = document.getElementById('issueList');
+    if (!issues.length) {
+      list.innerHTML = '<div class="empty">🎉 没有发现问题</div>';
+    } else {
+      list.innerHTML = issues.map(i => {
+        const statusIdx = STATUSES.indexOf(i.status);
+        return `
+        <div>
+        <div class="issue-item">
+          <span class="sev sev-${i.severity==='高'?'high':i.severity==='中'?'mid':'low'}">${i.severity}</span>
+          <div class="info">
+            <div class="title">${i.rule_id} ${i.description}</div>
+            <div class="meta">${i.table_name}.${i.field_name} · ${i.dimension} · ${i.record_count}条记录</div>
+          </div>
+          <div class="actions">
+            <span class="expand-issue" id="exp_${i.issue_id}" onclick="toggleSamples('${i.rule_id}','${i.issue_id}')" title="查看违规数据">▶</span>
+            <div class="workflow">
+              ${STATUSES.map((s, idx) => `
+                <div class="step ${idx<statusIdx?'done':idx===statusIdx?'current':'pending'}"
+                     onclick="updateStatus('${i.issue_id}','${s}')"
+                     title="点击设为: ${s}">${idx+1}</div>
+                ${idx<4?'<span class="arrow">→</span>':''}
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="samples-detail" id="samples_${i.issue_id}">
+          <div class="load-hint">点击 ▶ 查看违规数据</div>
+        </div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function toggleSamples(ruleId, issueId) {
+  const detail = document.getElementById('samples_' + issueId);
+  const btn = document.getElementById('exp_' + issueId);
+  if (!detail || !btn) return;
+
+  const isOpen = detail.classList.contains('show');
+  if (isOpen) {
+    detail.classList.remove('show');
+    btn.classList.remove('open');
+    btn.textContent = '▶';
+    return;
+  }
+
+  detail.classList.add('show');
+  btn.classList.add('open');
+  btn.textContent = '▼';
+  // 保存当前 rule_id，供翻页函数使用
+  detail.dataset.ruleId = ruleId;
+  detail.dataset.page = '0';
+  loadSamplePage(issueId, 0);
+}
+
+async function loadSamplePage(issueId, page) {
+  const detail = document.getElementById('samples_' + issueId);
+  if (!detail) return;
+  const ruleId = detail.dataset.ruleId;
+  const limit = 8;
+  const offset = page * limit;
+  detail.innerHTML = '<div class="load-hint">加载中...</div>';
+
+  try {
+    const r = await fetch(`${API}/samples?rule_id=${ruleId}&limit=${limit}&offset=${offset}`);
+    const d = await r.json();
+    if (d.status === 'error') {
+      detail.innerHTML = `<div class="load-hint" style="color:#e74c3c">错误: ${d.message}</div>`;
+      return;
+    }
+    if (!d.samples || !d.samples.length) {
+      detail.innerHTML = '<div class="load-hint">无违规数据</div>';
+      return;
+    }
+    const cols = Object.keys(d.samples[0]);
+    const totalPages = Math.ceil(d.total / limit);
+    detail.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:0.75rem;color:#999">违规数据 ${d.total}条 (第${offset+1}-${offset+d.count}条)</span>
+        <span style="font-size:0.75rem">
+          <button onclick="loadSamplePage('${issueId}',${page-1})" ${page===0?'disabled':''}
+            style="padding:2px 10px;border:1px solid #d9d9d9;background:#fff;border-radius:4px;cursor:pointer;font-size:0.7rem;${page===0?'opacity:0.4':''}">上一页</button>
+          <span style="margin:0 8px;color:#333;font-weight:600">${page+1}/${totalPages}</span>
+          <button onclick="loadSamplePage('${issueId}',${page+1})"
+            style="padding:2px 10px;border:1px solid #d9d9d9;background:#fff;border-radius:4px;cursor:pointer;font-size:0.7rem;${page+1>=totalPages?'opacity:0.4':''}" ${page+1>=totalPages?'disabled':''}>下一页</button>
+        </span>
+      </div>
+      <table>
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${d.samples.map(row => `<tr>
+            ${cols.map(c => {
+              let v = row[c];
+              if (v === null || v === undefined) return '<td class="null-cell">NULL</td>';
+              if (typeof v === 'number' && v < 0) return '<td class="null-cell">' + v + '</td>';
+              return '<td>' + String(v).substring(0, 80) + '</td>';
+            }).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    detail.innerHTML = '<div class="load-hint">加载失败</div>';
+  }
+}
+
+async function updateStatus(issueId, newStatus) {
+  try {
+    const r = await fetch(`${API}/issues/${issueId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    const d = await r.json();
+    if (d.status === 'ok') loadIssues();
+  } catch(e) { console.error(e); }
+}
+
+init();
+</script>
+</body>
+</html>

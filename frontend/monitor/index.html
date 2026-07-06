@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客户风险监控</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
+.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 64px; }
+.header a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
+.header h1 { font-size: 1.3rem; color: #fff; }
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.tab { padding: 9px 24px; border: 1px solid #d9d9d9; background: #fff; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.15s; }
+.tab:hover { border-color: #4a90d9; color: #4a90d9; }
+.tab.active { background: #1a1f3a; color: #fff; border-color: #1a1f3a; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.panel { background: #fff; border-radius: 10px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.panel h3 { font-size: 0.95rem; color: #333; margin-bottom: 14px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; } .grid-2 .panel { margin-bottom: 0; }
+
+/* 选择器 */
+.selector { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.selector select { flex: 1; max-width: 350px; padding: 8px 12px; border: 1px solid #d9d9d9; border-radius: 6px; font-size: 0.9rem; }
+.btn { padding: 9px 22px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: #1a1f3a; color: #fff; }
+.btn-primary:hover { background: #2a3050; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 风险评分 */
+.risk-score { text-align: center; padding: 24px 16px 16px; }
+.risk-score .big { font-size: 3.5rem; font-weight: 700; margin-top: 8px; }
+.risk-score .level { font-size: 1rem; font-weight: 700; padding: 3px 16px; border-radius: 12px; display: inline-block; margin-top: 6px; }
+
+/* 标签 */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 50px; }
+.tag { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.tag-red { background: #fff1f0; color: #cf1322; }
+.tag-orange { background: #fff7e6; color: #d46b08; }
+.sub-row { background: #fafafa; }
+.sub-row td { padding: 3px 10px; font-size: 0.78rem; color: #888; }
+.expand-tri { cursor: pointer; font-size: 0.65rem; color: #bbb; margin-right: 4px; display: inline-block; transition: transform 0.2s; }
+.expand-tri.open { transform: rotate(90deg); }
+
+/* 统计条 */
+.stats-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 30px; }
+.stat-item { background: #f8f9fa; border-radius: 8px; padding: 10px 16px; text-align: center; min-width: 80px; }
+.stat-item .sv { font-size: 1.3rem; font-weight: 700; color: #1a1f3a; }
+.stat-item .sl { font-size: 0.7rem; color: #999; }
+
+/* 网络图 */
+#networkChart { width: 100%; height: 500px; }
+
+/* 团伙 */
+.gang-card { border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+.gang-card .ghead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.gang-card .gtitle { font-weight: 700; font-size: 0.9rem; }
+.gang-card .gmeta { font-size: 0.75rem; color: #999; }
+.gang-card .gmembers { font-size: 0.82rem; color: #666; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
+th { background: #fafafa; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e8e8e8; }
+td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; }
+
+.loading { text-align: center; padding: 60px; color: #999; }
+.error-msg { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 6px; padding: 12px 16px; color: #cf1322; margin-bottom: 16px; display: none; }
+.error-msg.show { display: block; }
+.footer { text-align: center; padding: 30px; color: #bbb; font-size: 0.75rem; }
+@media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <a href="/products/">← 作品集</a>
+  <h1>🕵️ 客户风险监控</h1>
+  <span style="flex:1"></span>
+  <a href="/report/" style="background:rgba(126,184,218,0.15);color:#7eb8da;text-decoration:none;font-size:1rem;padding:9px 22px;border-radius:8px;font-weight:600;border:1px solid rgba(126,184,218,0.3);white-space:nowrap" onmouseover="this.style.background='rgba(126,184,218,0.25)'" onmouseout="this.style.background='rgba(126,184,218,0.15)'">📄 报告生成 →</a>
+</div>
+
+<div class="container">
+  <div class="error-msg" id="errorMsg"></div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('profile')">👤 客户风险画像</button>
+    <button class="tab" onclick="switchTab('network')">🕸️ 交易网络分析</button>
+  </div>
+
+  <!-- Tab 1: 客户风险画像 -->
+  <div class="tab-content active" id="tab-profile">
+    <div class="selector">
+      <label style="font-weight:600">选择客户:</label>
+      <select id="custSelect"><option value="">加载中...</option></select>
+      <button class="btn btn-primary" id="profileBtn" onclick="loadProfile()">🔍 分析</button>
+    </div>
+    <div id="profileContent"><div class="loading">请选择客户后点击分析</div></div>
+  </div>
+
+  <!-- Tab 2: 交易网络分析 -->
+  <div class="tab-content" id="tab-network">
+    <div class="selector">
+      <label style="font-weight:600">最小金额:</label>
+      <input type="number" id="minAmount" value="0" style="width:100px;padding:8px;border:1px solid #d9d9d9;border-radius:6px">
+      <button class="btn btn-primary" id="networkBtn" onclick="loadNetwork()">🔍 分析</button>
+    </div>
+    <div id="networkContent"><div class="loading">点击分析查看交易网络</div></div>
+  </div>
+</div>
+
+<div class="footer">Python FastAPI · ECharts · AI-Assisted | (c) 2026 王亚慧</div>
+
+<script>
+const API = '/api/monitor';
+let profileChart = null, networkChart = null, networkData = null;
+
+async function init() {
+  try {
+    const r = await fetch(`${API}/customers?limit=100`);
+    const d = await r.json();
+    const sel = document.getElementById('custSelect');
+    sel.innerHTML = d.customers.map(c =>
+      `<option value="${c.customer_id}">${c.customer_id} - ${c.name} (${c.nationality})</option>`
+    ).join('');
+  } catch(e) { console.error(e); }
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', (i===0 && name==='profile') || (i===1 && name==='network')));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'network' && networkChart) networkChart.resize();
+}
+
+async function loadProfile() {
+  const cid = document.getElementById('custSelect').value;
+  if (!cid) return;
+  const btn = document.getElementById('profileBtn');
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    const r = await fetch(`${API}/profile/${cid}`);
+    const d = await r.json();
+    if (d.status === 'error') { showError(d.message); return; }
+    renderProfile(d);
+  } catch(e) { showError('加载失败'); }
+  finally { btn.disabled = false; btn.textContent = '🔍 分析'; }
+}
+
+function renderProfile(d) {
+  const c = d.customer;
+  const levelColors = { '低':'#52c41a','中':'#faad14','高':'#e74c3c','最高':'#cf1322' };
+  const dims = d.dimensions;
+  const dimKeys = Object.keys(dims);
+
+  document.getElementById('profileContent').innerHTML = `
+    <div class="grid-2">
+      <div class="panel">
+        <h3>👤 ${c.name} <span style="font-size:0.8rem;color:#bbb;font-weight:400">${c.customer_id}</span></h3>
+        <div class="risk-score">
+          <div class="big" style="color:${levelColors[d.risk_level]}">${d.overall_score}</div>
+          <div class="level" style="background:${levelColors[d.risk_level]}20;color:${levelColors[d.risk_level]};border:1px solid ${levelColors[d.risk_level]}60">${d.risk_level}风险</div>
+        </div>
+        <div class="tags">${d.tags.map(t => `<span class="tag tag-${t.color}">${t.label}</span>`).join('') || '<span style="color:#999;font-size:0.8rem">无特殊风险标签</span>'}</div>
+        <div class="stats-bar">
+          <div class="stat-item"><div class="sv">${d.stats.total_txn}</div><div class="sl">总交易</div></div>
+          <div class="stat-item"><div class="sv">${(d.stats.total_amount/10000).toFixed(0)}万</div><div class="sl">交易总额</div></div>
+          <div class="stat-item"><div class="sv">${d.stats.large_txn}</div><div class="sl">大额交易</div></div>
+          <div class="stat-item"><div class="sv">${d.stats.cross_border}</div><div class="sl">跨境交易</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>📡 风险雷达图</h3>
+        <div id="profileRadar" style="width:100%;height:320px"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>📋 评分明细</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>维度</th><th>权重</th><th>原始分</th><th>加权</th><th>进度</th></tr></thead>
+        <tbody>${dimKeys.map((k, idx) => {
+          const dim = dims[k];
+          const w = parseInt(dim.weight);
+          const weighted = Math.round(dim.score * w / 100);
+          const details = dim.details || [];
+          const rowId = 'dim_' + idx;
+          return `
+          <tr>
+            <td><span class="expand-tri" id="tri_${rowId}" onclick="toggleDimDetail('${rowId}')">▶</span><b>${k}</b></td>
+            <td>${dim.weight}</td>
+            <td>${dim.score}</td>
+            <td style="font-weight:700">${weighted}</td>
+            <td><div style="background:#f0f0f0;height:6px;border-radius:3px;width:120px"><div style="width:${dim.score}%;height:100%;border-radius:3px;background:${dim.score>60?'#e74c3c':dim.score>30?'#faad14':'#52c41a'}"></div></div></td>
+          </tr>
+          ${details.map(d => `
+          <tr class="sub-row" id="${rowId}_detail" style="display:none">
+            <td style="padding-left:24px">└ ${d.rule}</td>
+            <td></td>
+            <td style="color:#999">${d.score}</td>
+            <td style="color:#bbb">/${d.max}</td>
+            <td style="font-size:0.75rem;color:#aaa">${d.desc}</td>
+          </tr>`).join('')}`;
+        }).join('')}
+        <tr style="border-top:2px solid #e8e8e8;font-weight:700">
+          <td>综合总分</td><td>100%</td><td></td><td style="font-size:1.1rem;color:${levelColors[d.risk_level]}">${d.overall_score}</td><td>${d.risk_level}风险</td>
+        </tr></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h3>📊 交易趋势</h3>
+      <div id="trendChart" style="width:100%;height:250px"></div>
+    </div>
+    <div class="panel">
+      <h3>📋 近期交易</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>日期</th><th>类型</th><th>金额</th><th>币种</th><th>渠道</th><th>对手方</th></tr></thead>
+        <tbody>${d.transactions.map(t => `
+          <tr><td>${t.transaction_date||''}</td><td>${t.transaction_type||''}</td>
+          <td style="color:${(t.amount||0)<0?'#e74c3c':'#333'}">${(t.amount||0).toLocaleString()}</td>
+          <td>${t.currency}${t.currency!='CNY'?' ⚠':''}</td><td>${t.channel}</td>
+          <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis">${t.counterparty_info||'-'}</td></tr>
+        `).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  // 雷达图
+  const el = document.getElementById('profileRadar');
+  if (profileChart) profileChart.dispose();
+  profileChart = echarts.init(el);
+  profileChart.setOption({
+    radar: { center:['50%','50%'], radius:'60%', indicator: dimKeys.map(k => ({name:k, max:100})) },
+    series: [{ type:'radar', data:[{value:dimKeys.map(k=>dims[k].score), name:c.name, areaStyle:{color:'rgba(74,144,226,0.12)'}, lineStyle:{color:'#4a90e2',width:2}}], symbol:'circle',symbolSize:6 }],
+  });
+
+  // 趋势图
+  const tEl = document.getElementById('trendChart');
+  const trend = d.trend || [];
+  const tChart = echarts.init(tEl);
+  tChart.setOption({
+    tooltip:{trigger:'axis'}, grid:{left:60,right:20,top:10,bottom:30},
+    xAxis:{type:'category',data:trend.map(x=>x.month)},
+    yAxis:{type:'value'},
+    series:[{type:'bar',data:trend.map(x=>x.amount),itemStyle:{color:'#4a90e2'}}],
+  });
+}
+
+async function loadNetwork() {
+  const btn = document.getElementById('networkBtn');
+  btn.disabled = true; btn.textContent = '...';
+  const minAmt = document.getElementById('minAmount').value || 0;
+  try {
+    const r = await fetch(`${API}/network?min_amount=${minAmt}`);
+    const d = await r.json();
+    if (d.status === 'error') { showError(d.message); return; }
+    renderNetwork(d);
+  } catch(e) { showError('加载失败'); }
+  finally { btn.disabled = false; btn.textContent = '🔍 分析'; }
+}
+
+function renderNetwork(d) {
+  networkData = d;
+  document.getElementById('networkContent').innerHTML = `
+    <div class="panel">
+      <h3>🕸️ 交易关系网络 (${d.stats.total_customers}节点 · ${d.stats.total_edges}条边 · ${d.stats.total_gangs}个团伙)</h3>
+      <div id="networkChart"></div>
+    </div>
+    <div class="panel">
+      <h3>📋 疑似团伙 (${d.stats.total_gangs}个)</h3>
+      ${d.gangs.length ? d.gangs.map((g, i) => `
+<div class="gang-card">
+          <div class="ghead" style="cursor:pointer">
+            <span class="gtitle" onclick="highlightGang(${i})"><span class="expand-tri" id="gtri_${i}" onclick="event.stopPropagation();toggleGangDetail(${i})">▶</span> ${i+1}. ${g.size}人团伙</span>
+            <span class="tag tag-${g.risk==='高'?'red':g.risk==='中'?'orange':'red'}" style="opacity:0.6">${g.risk}风险</span>
+          </div>
+          <div class="gmeta">平均相似度: ${g.avg_similarity} | 密度: ${g.density} | 内部关联: ${g.internal_edges}条</div>
+          <div class="gang-detail" id="gdetail_${i}" style="display:none;margin-top:8px">
+            <div style="font-size:0.8rem;font-weight:600;color:#555;margin-bottom:6px">成员信息</div>
+            <table style="margin-top:8px;font-size:0.75rem"><thead><tr><th>客户ID</th><th>姓名</th><th>风险</th><th>年龄</th><th>国籍</th><th>职业</th><th>电话</th><th>地址</th></tr></thead>
+            <tbody>${g.customers.map(c => '<tr><td>'+c.id+'</td><td>'+c.name+'</td><td>'+c.risk+'</td><td>'+c.age+'</td><td>'+c.nationality+'</td><td>'+c.occupation+'</td><td>'+c.phone+'</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis">'+c.address+'</td></tr>').join('')}</tbody></table>
+          <div style="font-size:0.8rem;font-weight:600;color:#555;margin:10px 0 6px">交易关联</div>
+          <table style="font-size:0.75rem"><thead><tr><th>客户A</th><th>客户B</th><th>综合</th><th>对手方</th><th>金额</th><th>地域</th><th>时间</th><th>共享对手方</th></tr></thead>
+            <tbody>${(g.transactions||[]).map(t => '<tr><td>'+t.from+'</td><td>'+t.to+'</td><td>'+t.total_sim+'</td><td>'+t.cp_shared+'</td><td>'+t.amount_sim+'</td><td>'+t.geo_sim+'</td><td>'+t.time_sim+'</td><td style="font-size:0.7rem;color:#888">'+(t.counterparties||[]).join(', ')+'</td></tr>').join('')}</tbody></table>
+          </div>
+        </div>
+      `).join('') : '<div style="color:#999;text-align:center;padding:20px">未发现疑似团伙</div>'}
+    </div>`;
+
+  if (!d.nodes.length) return;
+
+  const el = document.getElementById('networkChart');
+  if (networkChart) networkChart.dispose();
+  networkChart = echarts.init(el);
+
+  const gangNodes = d.nodes.filter(n => n.gang >= 0);
+  const normalNodes = d.nodes.filter(n => n.gang < 0);
+
+  networkChart.setOption({
+    tooltip: { formatter: function(p) {
+      if (p.dataType !== 'node') return '';
+      const n = d.nodes.find(x => x.name === p.name);
+      if (!n) return p.name;
+      let tip = '<b>' + p.name + '</b>';
+      if (n.gang >= 0) tip += '<br/>team member: ' + n.gangName;
+      return tip;
+    }},
+    legend: d.gangs.length ? {
+      data: d.gangs.map(function(g) { return g.name; }),
+      bottom: 0,
+      textStyle: { fontSize: 11 },
+    } : undefined,
+    series: [{
+      type: 'graph', layout: 'force', roam: true, draggable: true,
+      force: { repulsion: 300, edgeLength: [100, 250] },
+      categories: d.gangs.map(function(g) { return { name: g.name }; }),
+      data: gangNodes.map(function(n) { return {
+        name: n.name, symbolSize: n.symbolSize,
+        itemStyle: { color: n.gangColor, borderColor: '#fff', borderWidth: 2 },
+        category: n.gang,
+      }; }).concat(normalNodes.map(function(n) { return {
+        name: n.name, symbolSize: n.symbolSize,
+        itemStyle: { color: '#bbb' },
+      }; })),
+      links: d.links.map(function(l) { return {
+        source: l.source, target: l.target,
+        lineStyle: { color: '#e0e0e0', width: Math.min(3, Math.log(l.value + 1)) },
+      }; }),
+      label: { show: true, fontSize: 9, formatter: '{b}' },
+      emphasis: { label: { fontSize: 13, fontWeight: 'bold' } },
+    }],
+  });
+
+  // 点击节点高亮所属团伙
+  networkChart.on('click', function(params) {
+    if (params.dataType !== 'node') return;
+    const nodeName = params.name;
+    const node = d.nodes.find(n => n.name === nodeName);
+    if (!node || node.gang < 0) { networkChart.dispatchAction({ type: 'unselect' }); return; }
+
+    const gangId = node.gang;
+    const gang = d.gangs[gangId];
+    if (!gang) return;
+
+    // 高亮该gang的所有节点
+    const gangNames = new Set(gang.customers.map(c => c.name));
+    const allNodes = networkChart.getOption().series[0].data;
+    allNodes.forEach(n => {
+      const isGang = gangNames.has(n.name);
+      n.itemStyle = n.itemStyle || {};
+      n.itemStyle.opacity = isGang ? 1 : 0.15;
+      n.label = n.label || {};
+      n.label.show = isGang;
+    });
+    networkChart.setOption({ series: [{ data: allNodes }] });
+
+  });
+
+  // 点击空白处恢复
+  networkChart.on('dblclick', function() {
+    const allNodes = networkChart.getOption().series[0].data;
+    allNodes.forEach(n => {
+      if (n.itemStyle) n.itemStyle.opacity = 1;
+      if (n.label) n.label.show = true;
+    });
+    networkChart.setOption({ series: [{ data: allNodes }] });
+  });
+}
+
+function toggleDimDetail(rowId) {
+  const tri = document.getElementById('tri_' + rowId);
+  const rows = document.querySelectorAll('[id^="' + rowId + '_detail"]');
+  const isOpen = rows.length > 0 && rows[0].style.display !== 'none';
+  rows.forEach(r => r.style.display = isOpen ? 'none' : 'table-row');
+  if (tri) { tri.textContent = isOpen ? '▶' : '▼'; tri.classList.toggle('open', !isOpen); }
+}
+
+function highlightGang(idx) {
+  if (!networkData || !networkChart) return;
+  const gang = networkData.gangs[idx];
+  if (!gang) return;
+  const gangNames = new Set(gang.customers.map(c => c.name));
+  const allNodes = networkChart.getOption().series[0].data;
+  allNodes.forEach(n => {
+    n.itemStyle = n.itemStyle || {};
+    n.itemStyle.opacity = gangNames.has(n.name) ? 1 : 0.15;
+    n.label = n.label || {};
+    n.label.show = gangNames.has(n.name);
+  });
+  networkChart.setOption({ series: [{ data: allNodes }] });
+}
+
+function toggleGangDetail(idx) {
+  const el = document.getElementById('gdetail_' + idx);
+  const tri = document.getElementById('gtri_' + idx);
+  if (!el || !tri) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  tri.textContent = isOpen ? '▶' : '▼';
+}
+
+function showError(m) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = 'Error: ' + m; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 5000);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作品集 | 王亚慧</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
+.topbar { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); padding: 16px 32px; display: flex; align-items: center; height: 64px; box-sizing: border-box; }
+.topbar a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
+.topbar .brand { color: #fff; font-size: 1.1rem; font-weight: 700; }
+
+.hero { text-align: center; padding: 50px 20px 30px; }
+.hero h2 { font-size: 1.8rem; color: #1a1f3a; margin-bottom: 8px; }
+.hero p { color: #999; font-size: 0.95rem; }
+
+.products { max-width: 860px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.product-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 30px; transition: transform 0.2s, box-shadow 0.2s; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.product-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+.product-card .icon { font-size: 2.5rem; margin-bottom: 14px; }
+.product-card h3 { color: #1a1f3a; margin-bottom: 10px; font-size: 1.1rem; }
+.product-card p { color: #888; font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px; flex: 1; }
+.product-card .btn { display: inline-block; background: #1a1f3a; color: #fff; padding: 9px 24px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: background 0.2s; align-self: flex-start; }
+.product-card .btn:hover { background: #2a3050; }
+
+.footer { text-align: center; padding: 40px 20px 30px; }
+.footer a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
+.footer a:hover { text-decoration: underline; }
+
+@media (max-width: 600px) { .products { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/">← 关于我</a>
+  <span class="brand" style="margin-left:12px">📊 作品集</span>
+</div>
+
+<div class="hero">
+  <h2>用AI工具把10年金融数据经验产品化</h2>
+  <p>四个产品相互联通，形成完整的数据治理闭环</p>
+</div>
+
+<div class="products">
+    <div class="product-card">
+      <div class="icon">🏭</div>
+      <h3>数据生成器</h3>
+      <p>一键生成模拟金融机构的客户、账户、交易、产品数据。支持配置数据质量问题的类型和比例。</p>
+      <a href="/generator/" class="btn">进入 →</a>
+    </div>
+    <div class="product-card">
+      <div class="icon">📊</div>
+      <h3>数据质量监控</h3>
+      <p>15条校验规则 · 四维度评分 · 30天趋势图 · 问题发现→派发→整改→复核闭环追踪。</p>
+      <a href="/dashboard/" class="btn">进入 →</a>
+    </div>
+    <div class="product-card">
+      <div class="icon">📄</div>
+      <h3>报告生成</h3>
+      <p>模板化自动生成专业报告。在线编辑，一键填充数据，导出Word。支持自定义模板。</p>
+      <a href="/report/" class="btn">进入 →</a>
+    </div>
+    <div class="product-card">
+      <div class="icon">🔐</div>
+      <h3>反洗钱风险自评估</h3>
+      <p>公司层面四维评估：客户风险·产品风险·渠道风险·地域风险 + 雷达图 + 整改建议。</p>
+      <a href="/aml/" class="btn">进入 →</a>
+    </div>
+    <div class="product-card">
+      <div class="icon">🕵️</div>
+      <h3>客户风险监控</h3>
+      <p>单客户洗钱风险画像 + 交易网络团伙分析。五维雷达图、风险标签、力导向网络图。</p>
+      <a href="/monitor/" class="btn">进入 →</a>
+    </div>
+  </div>
+
+  <div class="footer">
+  <a href="/">← 返回关于我</a>
+</div>
+</body>
+</html>

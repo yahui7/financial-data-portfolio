@@ -1,0 +1,31 @@
+{
+  "id": "tpl_aml",
+  "name": "反洗钱风险评估报告",
+  "sections": [
+    {
+      "title": "一、评估概要",
+      "source": "data_summary"
+    },
+    {
+      "title": "二、综合风险评级",
+      "source": "aml_assessment"
+    },
+    {
+      "title": "三、四维度风险评估详情",
+      "source": "aml_assessment"
+    },
+    {
+      "title": "四、整改建议",
+      "source": "aml_assessment"
+    },
+    {
+      "title": "五、结论",
+      "source": "manual"
+    },
+    {
+      "title": "附件 问题发现",
+      "source": "quality_issues"
+    }
+  ],
+  "preset": false
+}

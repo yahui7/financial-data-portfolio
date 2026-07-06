@@ -1,0 +1,11 @@
+{
+  "id": "tpl_20260702153906",
+  "name": "test",
+  "sections": [
+    {
+      "title": "第一章",
+      "source": "manual"
+    }
+  ],
+  "preset": false
+}

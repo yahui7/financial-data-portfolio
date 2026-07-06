@@ -1,0 +1,27 @@
+{
+  "id": "tpl_quality",
+  "name": "数据质量报告",
+  "preset": true,
+  "sections": [
+    {
+      "title": "一、数据概况",
+      "source": "data_summary"
+    },
+    {
+      "title": "二、数据质量评估",
+      "source": "quality_scan"
+    },
+    {
+      "title": "三、主要问题发现",
+      "source": "quality_scan"
+    },
+    {
+      "title": "四、整改建议",
+      "source": "quality_scan"
+    },
+    {
+      "title": "五、结论",
+      "source": "manual"
+    }
+  ]
+}

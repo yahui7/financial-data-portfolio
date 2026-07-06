@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>王亚慧 · 金融数据产品</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; line-height: 1.7; }
+a { color: #4a90d9; text-decoration: none; }
+
+/* 顶栏 */
+.topbar { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); padding: 16px 32px; display: flex; align-items: center; height: 64px; }
+.topbar .brand { color: #fff; font-size: 1.1rem; font-weight: 700; }
+.topbar .spacer { flex: 1; }
+.topbar .nav-btn { background: rgba(126,184,218,0.15); color: #7eb8da; padding: 9px 22px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; border: 1px solid rgba(126,184,218,0.3); transition: all 0.2s; text-decoration: none; }
+.topbar .nav-btn:hover { background: rgba(126,184,218,0.25); }
+
+.container { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+
+/* Hero */
+.hero { background: #fff; border-radius: 16px; padding: 48px 40px; margin: 30px 0; display: flex; gap: 40px; align-items: center; box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+.hero-left { flex: 1; }
+.hero-left .greeting { font-size: 1.6rem; font-weight: 700; color: #1a1f3a; margin-bottom: 6px; }
+.hero-left .tagline { font-size: 0.95rem; color: #7eb8da; margin-bottom: 18px; font-weight: 500; }
+.hero-left .bio { font-size: 0.93rem; color: #666; margin-bottom: 20px; }
+.hero-left .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+.hero-left .stats .stat { text-align: center; background: #f8f9fa; border-radius: 10px; padding: 12px 20px; min-width: 80px; }
+.hero-left .stats .stat .num { font-size: 1.5rem; font-weight: 700; color: #1a1f3a; }
+.hero-left .stats .stat .lbl { font-size: 0.7rem; color: #999; margin-top: 2px; }
+.hero-left .contact { font-size: 0.82rem; color: #aaa; display: flex; gap: 16px; flex-wrap: wrap; }
+
+.hero-right { flex-shrink: 0; }
+.avatar { width: 140px; height: 140px; border-radius: 50%; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #6366f1; border: 4px solid #eef2ff; }
+
+/* Section */
+.section { margin-bottom: 28px; }
+.section-title { font-size: 1.05rem; font-weight: 700; color: #1a1f3a; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #e8e8e8; display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.section-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.section-title .tri { font-size: 0.65rem; color: #bbb; transition: none; margin-left: auto; }
+.section-body { transition: all 0.3s ease; overflow: hidden; }
+.section-body.collapsed { max-height: 0; opacity: 0; margin-bottom: 0; }
+.dot-blue { background: #4a90d9; } .dot-orange { background: #e67e22; } .dot-green { background: #52c41a; } .dot-purple { background: #7b68ee; }
+
+/* Timeline */
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #e8e8e8; }
+.timeline-item { position: relative; margin-bottom: 20px; }
+.timeline-item:last-child { margin-bottom: 0; }
+.timeline-item::before { content: ''; position: absolute; left: -25px; top: 8px; width: 12px; height: 12px; border-radius: 50%; background: #e8e8e8; border: 2px solid #fff; box-shadow: 0 0 0 2px #e8e8e8; }
+.timeline-item.active::before { background: #4a90d9; box-shadow: 0 0 0 2px #4a90d9; }
+.timeline-item .tdate { font-size: 0.75rem; color: #bbb; margin-bottom: 2px; font-weight: 600; }
+.timeline-item .tcard { background: #fff; border: 1px solid #e8e8e8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.timeline-item .tcard .torg { font-weight: 700; color: #1a1f3a; font-size: 0.95rem; }
+.timeline-item .tcard .trole { color: #7eb8da; font-size: 0.82rem; font-weight: 500; margin-left: 8px; }
+.timeline-item .tcard .tdesc { font-size: 0.82rem; color: #888; margin-top: 6px; }
+
+/* 证书卡片 */
+.cert-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.cert-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 10px; padding: 22px 14px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.cert-card .cicon { font-size: 2rem; margin-bottom: 8px; }
+.cert-card .cname { font-weight: 700; font-size: 0.85rem; color: #1a1f3a; }
+.cert-card .csub { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
+
+/* 项目卡片 */
+.proj-list { display: flex; flex-direction: column; gap: 10px; }
+.proj-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s; }
+.proj-card:hover { border-color: #b8d4f0; }
+.proj-card .proj-head { display: flex; align-items: center; gap: 10px; }
+.proj-card .proj-icon { width: 10px; height: 10px; border-radius: 50%; background: #4a90d9; flex-shrink: 0; }
+.proj-card .proj-title { font-weight: 600; font-size: 0.92rem; color: #1a1f3a; flex: 1; }
+.proj-card .proj-toggle { font-size: 0.7rem; color: #bbb; transition: transform 0.2s; }
+.proj-card.open .proj-toggle { transform: rotate(90deg); }
+.proj-card .proj-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; font-size: 0.85rem; color: #666; }
+.proj-card.open .proj-body { display: block; }
+.proj-card .proj-body .highlight { margin: 4px 0; padding-left: 12px; }
+.show-more { text-align: center; padding: 10px; }
+.show-more button { background: none; border: 1px solid #d9d9d9; color: #888; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-size: 0.82rem; transition: all 0.2s; }
+.show-more button:hover { border-color: #4a90d9; color: #4a90d9; }
+
+/* AI 能力 */
+.ai-tags { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.ai-tag { background: #fff; border: 1px solid #e8e8e8; border-radius: 20px; padding: 6px 16px; font-size: 0.82rem; color: #666; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+.ai-desc { font-size: 0.85rem; color: #888; }
+
+/* 底部 CTA */
+.cta { text-align: center; margin: 40px 0 30px; }
+.cta-btn { display: inline-block; background: linear-gradient(135deg, #1a1f3a 0%, #2a3050 100%); color: #fff; padding: 14px 40px; border-radius: 10px; font-size: 1.05rem; font-weight: 700; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; box-shadow: 0 4px 14px rgba(26,31,58,0.3); }
+.cta-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,31,58,0.4); }
+
+.footer { text-align: center; padding: 20px 20px 40px; color: #ccc; font-size: 0.75rem; }
+
+@media (max-width: 700px) {
+  .hero { flex-direction: column-reverse; text-align: center; padding: 30px 24px; }
+  .hero-left .stats { justify-content: center; }
+  .hero-left .contact { justify-content: center; }
+  .cert-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">王亚慧 · 金融数据产品</span>
+  <span class="spacer"></span>
+  <a href="/products/" class="nav-btn">📊 作品集 →</a>
+</div>
+
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-left">
+      <div class="greeting">你好，我是王亚慧 👋</div>
+      <div class="tagline">金融数据产品专家 · 常驻武汉</div>
+      <div class="bio">
+        近10年深耕金融与数据的交叉领域。<br>
+        渣打银行起步，普华永道七年磨砺，从写代码到带团队，从执行到战略。<br>
+        现在，用AI把10年专业经验变成可以运行的产品。
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num">10</div><div class="lbl">年经验</div></div>
+        <div class="stat"><div class="num">4</div><div class="lbl">专业认证</div></div>
+        <div class="stat"><div class="num">5+</div><div class="lbl">核心项目</div></div>
+      </div>
+      <div class="contact">✉️ yahuiwang7@163.com &nbsp;·&nbsp; 📱 1397 1374 333</div>
+    </div>
+    <div class="hero-right">
+      <div class="avatar">YH</div>
+    </div>
+  </div>
+
+  <!-- 教育背景 -->
+  <div class="section">
+    <div class="section-title" onclick="toggleSection(this)"><span class="dot dot-blue"></span> 教育背景 <span class="tri">▼</span></div>
+    <div class="section-body"><div class="timeline">
+      <div class="timeline-item active">
+        <div class="tdate">2014 — 2015</div>
+        <div class="tcard">
+          <span class="torg">英国伯明翰大学</span><span class="trole">金融工程硕士</span>
+          <div class="tdesc">优秀毕业生 · 量化金融 · 风险模型 · 衍生品定价</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="tdate">2009 — 2013</div>
+        <div class="tcard">
+          <span class="torg">江汉大学</span><span class="trole">计算机科学与技术本科</span>
+          <div class="tdesc">系统编程 · 数据库 · 算法基础 — 为后续技术工作奠定坚实基础</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 工作经历 -->
+  <div class="section">
+    <div class="section-title" onclick="toggleSection(this)"><span class="dot dot-orange"></span> 工作经历 <span class="tri">▼</span></div>
+    <div class="section-body"><div class="timeline">
+      <div class="timeline-item active">
+        <div class="tdate">2021 — 2025</div>
+        <div class="tcard">
+          <span class="torg">普华永道商务咨询</span><span class="trole">经理</span>
+          <div class="tdesc">为头部金融机构提供数据管理咨询 · 数据治理体系建设 · 数据产品落地 · 合规风控与审计 · 项目管理 · 客户满意度100%</div>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="tdate">2018 — 2021</div>
+        <div class="tcard">
+          <span class="torg">普华永道商务咨询</span><span class="trole">高级顾问</span>
+        </div>
+      </div>
+      <div class="timeline-item">
+        <div class="tdate">2016 — 2018</div>
+        <div class="tcard">
+          <span class="torg">渣打银行</span><span class="trole">开发工程师</span>
+          <div class="tdesc">金融交易数据处理 · ETL流程开发 · 自动化平台搭建 · 数据处理效率提升60%</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 专业认证 -->
+  <div class="section">
+    <div class="section-title" onclick="toggleSection(this)"><span class="dot dot-green"></span> 专业认证 <span class="tri">▼</span></div>
+    <div class="section-body"><div class="cert-row">
+      <div class="cert-card">
+        <div class="cicon">🛡️</div>
+        <div class="cname">CISA</div>
+        <div class="csub">国际信息系统审计师</div>
+      </div>
+      <div class="cert-card">
+        <div class="cicon">📋</div>
+        <div class="cname">PMP</div>
+        <div class="csub">项目管理专业资格</div>
+      </div>
+      <div class="cert-card">
+        <div class="cicon">💰</div>
+        <div class="cname">CFA L1</div>
+        <div class="csub">特许金融分析师一级</div>
+      </div>
+      <div class="cert-card">
+        <div class="cicon">📜</div>
+        <div class="cname">SAC</div>
+        <div class="csub">证券从业资格证</div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- 核心项目 -->
+  <div class="section">
+    <div class="section-title" onclick="toggleSection(this)"><span class="dot dot-purple"></span> 核心项目 <span class="tri">▼</span></div>
+    <div class="section-body"><div class="proj-list" id="projList">
+      <div class="proj-card open" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">基金公司数据治理体系建设</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· 制定10+本数据治理管理制度</div>
+          <div class="highlight">· 盘点1000+核心数据项，建立数据资产目录</div>
+          <div class="highlight">· 搭建500+数据质量校验规则，覆盖完整性·准确性·一致性·时效性</div>
+          <div class="highlight">· 监管报送准确率100%，数据共享效率提升50%</div>
+        </div>
+      </div>
+      <div class="proj-card open" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">基金公司反洗钱领域数仓建设</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· ODS(贴源层) → DWD(明细层) → DWS(汇总层) → ADS(应用层) 全链路</div>
+          <div class="highlight">· 构建以客户为中心的大宽表，实现360°行为画像</div>
+          <div class="highlight">· 反洗钱驾驶舱：风险指标可视化 · 可疑交易检测</div>
+        </div>
+      </div>
+      <div class="proj-card open" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">银行业务连续性评估与洗钱风险评估</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· 业务影响分析 · 风险评估 · 业务连续性计划制定与演练</div>
+          <div class="highlight">· 搭建客户/产品/渠道洗钱风险评估模型</div>
+          <div class="highlight">· 通过外部监管和内部审计检查</div>
+        </div>
+      </div>
+      <div class="proj-card" id="hiddenProj" style="display:none" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">审计自动化产品落地</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· 业务需求调研分析 · 产品功能设计 · PRD撰写</div>
+          <div class="highlight">· 协调业务和研发资源，管理项目全周期</div>
+          <div class="highlight">· 成功上线，为审计团队提升运营效率60%</div>
+        </div>
+      </div>
+      <div class="proj-card" id="hiddenProj2" style="display:none" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">AI自研产品落地</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· 搭建Web应用：活动事件平台 · 游戏平台 · 教学平台</div>
+          <div class="highlight">· 搭建Obsidian知识库：数据治理 · SQL · AI</div>
+          <div class="highlight">· 独立完成从设计到部署的全流程</div>
+        </div>
+      </div>
+      <div class="proj-card" id="hiddenProj3" style="display:none" onclick="this.classList.toggle('open')">
+        <div class="proj-head">
+          <span class="proj-icon"></span>
+          <span class="proj-title">反洗钱系统搭建与优化</span>
+          <span class="proj-toggle">▶</span>
+        </div>
+        <div class="proj-body">
+          <div class="highlight">· KYC → 可疑交易监测 → 黑名单匹配 → 风险上报全流程</div>
+          <div class="highlight">· 优化客户/产品/渠道洗钱风险评估模型</div>
+          <div class="highlight">· 通过外部监管检查，反洗钱系统持续迭代</div>
+        </div>
+      </div>
+    </div>
+    <div class="show-more">
+      <button id="showMoreBtn" onclick="toggleMoreProjects()">展开更多项目 ▾</button>
+    </div></div>
+  </div>
+
+  <!-- AI能力 -->
+  <div class="section">
+    <div class="section-title" onclick="toggleSection(this)"><span class="dot dot-blue"></span> AI 能力 <span class="tri">▼</span></div>
+    <div class="section-body"><div class="ai-tags">
+      <span class="ai-tag">Claude</span><span class="ai-tag">Cursor</span><span class="ai-tag">Manus</span>
+      <span class="ai-tag">Obsidian</span><span class="ai-tag">Vibe Coding</span><span class="ai-tag">AI-Assisted Dev</span>
+    </div>
+    <div class="ai-desc">不只会用AI工具，更擅于把专业经验与AI结合，高效落地产品。</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <a href="/products/" class="cta-btn">📊 查看我的作品集 →</a>
+  </div>
+
+</div>
+
+<div class="footer">© 2026 王亚慧 · 武汉</div>
+
+<script>
+function toggleSection(titleEl) {
+  const body = titleEl.nextElementSibling;
+  const tri = titleEl.querySelector('.tri');
+  if (!body) return;
+  const isCollapsed = body.classList.contains('collapsed');
+  if (isCollapsed) {
+    body.classList.remove('collapsed');
+    titleEl.classList.add('open');
+    if (tri) tri.textContent = '▼';
+  } else {
+    body.classList.add('collapsed');
+    titleEl.classList.remove('open');
+    if (tri) tri.textContent = '▶';
+  }
+}
+
+function toggleMoreProjects() {
+  const hidden = document.querySelectorAll('#hiddenProj, #hiddenProj2, #hiddenProj3');
+  const btn = document.getElementById('showMoreBtn');
+  const isHidden = hidden[0].style.display === 'none';
+  hidden.forEach(el => el.style.display = isHidden ? 'block' : 'none');
+  btn.textContent = isHidden ? '收起更多项目 ▴' : '展开更多项目 ▾';
+}
+</script>
+</body>
+</html>

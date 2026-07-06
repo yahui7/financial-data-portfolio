@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据生成器 | 金融数据产品</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #fff;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            height: 64px;
+        }
+        .header h1 { font-size: 1.4rem; }
+        .header a { color: #7eb8da; text-decoration: none; font-size: 0.9rem; }
+        .header a:hover { text-decoration: underline; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+        /* 配置区 */
+        .config-panel {
+            background: #fff; border-radius: 12px; padding: 28px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px;
+        }
+        .config-panel h2 { font-size: 1.2rem; margin-bottom: 20px; color: #1a1f3a; }
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;
+        }
+        .config-field label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px; }
+        .config-field input {
+            width: 100%; padding: 8px 12px; border: 1px solid #d9d9d9;
+            border-radius: 6px; font-size: 0.95rem;
+        }
+        .config-field input:focus { border-color: #7eb8da; outline: none; box-shadow: 0 0 0 2px rgba(126,184,218,0.2); }
+
+        .issues-section { border-top: 1px solid #eee; padding-top: 20px; }
+        .issues-section h3 { font-size: 1rem; margin-bottom: 16px; color: #555; }
+        .issue-row {
+            display: flex; align-items: center; gap: 12px; padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        .issue-row:last-child { border-bottom: none; }
+        .issue-row .label {
+            width: 80px; font-weight: 600; font-size: 0.9rem;
+        }
+        .issue-row .desc { flex: 1; font-size: 0.83rem; color: #888; }
+        .issue-row input[type="range"] { width: 160px; accent-color: #7eb8da; }
+        .issue-row .pct {
+            width: 45px; text-align: right; font-size: 0.85rem;
+            font-weight: 600; color: #1a1f3a;
+        }
+        .issue-row .severity {
+            width: 50px; text-align: center; font-size: 0.75rem;
+            padding: 2px 8px; border-radius: 10px; font-weight: 600;
+        }
+        .sev-high { background: #fff1f0; color: #cf1322; }
+        .sev-mid { background: #fff7e6; color: #d46b08; }
+
+        .btn-row { margin-top: 24px; display: flex; gap: 12px; }
+        .btn {
+            padding: 10px 28px; border: none; border-radius: 8px;
+            font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: #1a1f3a; color: #fff; }
+        .btn-primary:hover { background: #2a3050; transform: translateY(-1px); }
+        .btn-secondary { background: #f0f2f5; color: #555; border: 1px solid #d9d9d9; }
+        .btn-secondary:hover { background: #e6e8eb; }
+        .btn-secondary.active { background: #e6f7ff; color: #1890ff; border-color: #7eb8da; }
+
+        /* 展开/收起 */
+        .expand-btn { cursor: pointer; font-size: 0.75rem; color: #999; transition: transform 0.2s; user-select: none; margin-left: 4px; }
+        .expand-btn.open { transform: rotate(90deg); }
+        .rules-detail { display: none; background: #fafafa; border-radius: 6px; padding: 8px 16px; margin: 6px 0 6px 24px; font-size: 0.8rem; }
+        .rules-detail.show { display: block; }
+        .rules-detail .rule-item { padding: 3px 0; color: #666; border-bottom: 1px solid #f0f0f0; }
+        .rules-detail .rule-item:last-child { border-bottom: none; }
+        .rules-detail .rule-item .rid { font-weight: 600; color: #1a1f3a; margin-right: 6px; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 结果区 */
+        .result-panel { display: none; }
+        .result-panel.active { display: block; }
+        .summary-cards {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+            margin-bottom: 24px;
+        }
+        .summary-card {
+            background: #fff; border-radius: 10px; padding: 20px;
+            text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .summary-card .num { font-size: 2rem; font-weight: 700; color: #1a1f3a; }
+        .summary-card .lbl { font-size: 0.8rem; color: #999; margin-top: 4px; }
+        .summary-card.issues { border-left: 3px solid #e74c3c; }
+
+        /* Tab 切换 */
+        .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+        .tab {
+            padding: 8px 20px; border: 1px solid #d9d9d9; background: #fff;
+            border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.9rem;
+            transition: all 0.15s;
+        }
+        .tab:hover { border-color: #7eb8da; color: #7eb8da; }
+        .tab.active { background: #1a1f3a; color: #fff; border-color: #1a1f3a; }
+
+        /* 数据表格 */
+        .table-wrap {
+            background: #fff; border-radius: 0 8px 8px 8px;
+            overflow-x: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        th { background: #fafafa; padding: 10px 8px; text-align: left; font-weight: 600;
+             white-space: nowrap; border-bottom: 2px solid #e8e8e8; color: #555; }
+        td { padding: 8px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+        tr:hover td { background: #f5f8ff; }
+        .null-val { color: #e74c3c; font-style: italic; }
+        .bad-val { color: #e67e22; font-weight: 600; }
+
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .error-msg { background: #fff1f0; border: 1px solid #ffa39e; border-radius: 6px;
+                     padding: 12px 16px; color: #cf1322; margin-bottom: 16px; display: none; }
+        .error-msg.show { display: block; }
+
+        .footer { text-align: center; padding: 40px; color: #bbb; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/products/">← 作品集</a>
+        <h1>🏭 金融数据生成器</h1>
+        <span style="flex:1"></span>
+        <a href="/dashboard/" style="background:rgba(126,184,218,0.2);color:#7eb8da;text-decoration:none;font-size:1.1rem;padding:10px 24px;border-radius:8px;transition:all 0.2s;font-weight:600;border:1px solid rgba(126,184,218,0.4);white-space:nowrap" onmouseover="this.style.background='rgba(126,184,218,0.35)'" onmouseout="this.style.background='rgba(126,184,218,0.2)'">📊 查看数据质量 →</a>
+    </div>
+
+    <div class="container">
+        <div class="error-msg" id="errorMsg"></div>
+
+        <!-- 配置面板 -->
+        <div class="config-panel">
+            <h2>⚙️ 生成配置</h2>
+            <div class="config-grid">
+                <div class="config-field">
+                    <label>客户数量</label>
+                    <input type="number" id="customerCount" value="200" min="10" max="5000">
+                </div>
+                <div class="config-field">
+                    <label>账户数量</label>
+                    <input type="number" id="accountCount" value="300" min="10" max="10000">
+                </div>
+                <div class="config-field">
+                    <label>交易数量</label>
+                    <input type="number" id="transactionCount" value="800" min="10" max="50000">
+                </div>
+                <div class="config-field">
+                    <label>产品数量</label>
+                    <input type="number" id="productCount" value="30" min="5" max="200">
+                </div>
+            </div>
+
+            <div class="issues-section">
+                <h3>📋 数据质量问题注入（拖拽滑块调节比例）</h3>
+                <div id="issueList"></div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn btn-primary" id="generateBtn" onclick="generate()">🚀 生成数据</button>
+                <button class="btn btn-secondary" id="presetSmall" onclick="loadPreset('small')">预设：小型(100/150/300)</button>
+                <button class="btn btn-secondary" id="presetMedium" onclick="loadPreset('medium')">预设：中型(500/750/1500)</button>
+                <button class="btn btn-secondary" id="presetLarge" onclick="loadPreset('large')">预设：大型(1000/1500/3000)</button>
+            </div>
+        </div>
+
+        <!-- 结果区 -->
+        <div class="result-panel" id="resultPanel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <h2 style="font-size:1.2rem">📊 生成结果</h2>
+                <div style="display:flex;gap:8px">
+                    <button class="btn btn-secondary" onclick="downloadJSON()">💾 下载全部JSON</button>
+                    <button class="btn btn-secondary" onclick="downloadCSV()">📥 下载当前表CSV</button>
+                </div>
+            </div>
+            <div class="summary-cards" id="summaryCards"></div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('customer')">👤 客户</button>
+                <button class="tab" onclick="switchTab('account')">💳 账户</button>
+                <button class="tab" onclick="switchTab('transactions')">💸 交易</button>
+                <button class="tab" onclick="switchTab('product')">📦 产品</button>
+            </div>
+            <div class="table-wrap" id="tableWrap">
+                <div class="loading">点击"生成数据"开始</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Python FastAPI · SQLite · AI-Assisted Development | © 2026 王亚慧</p>
+    </div>
+
+<script>
+const API = '/api/generator';
+const QUALITY_API = '/api/quality';
+let currentTab = 'customer';
+let allData = {};
+let issueTypes = [];
+let qualityRules = {};  // { completeness: [...], accuracy: [...], ... }
+
+// 质量问题配置
+const issuesConfig = {
+    completeness: { label: '完整性', desc: '关键字段缺失', severity: 'high', pct: 5 },
+    accuracy:     { label: '准确性', desc: '数据类型错误、金额为负、未来日期', severity: 'high', pct: 5 },
+    consistency:  { label: '一致性', desc: '同一客户跨表信息不一致', severity: 'mid', pct: 5 },
+    logical:      { label: '逻辑性', desc: '年龄与证件不匹配、销户日早于开户日', severity: 'mid', pct: 3 },
+    duplicate:    { label: '重复',   desc: '记录ID重复', severity: 'mid', pct: 3 },
+};
+
+async function init() {
+    try {
+        const res = await fetch(`${API}/issue-types`);
+        const data = await res.json();
+        issueTypes = data.issue_types;
+    } catch(e) { console.error(e); }
+
+    // 拉取质量规则，按维度分组，并自动推算每个问题类型的严重级别
+    try {
+        const res = await fetch(`${QUALITY_API}/rules`);
+        const data = await res.json();
+        for (const rule of data.rules) {
+            const dk = rule.dimension_key;
+            if (!qualityRules[dk]) qualityRules[dk] = [];
+            qualityRules[dk].push(rule);
+        }
+        // 根据规则推算问题类型的严重级别：有一条"高"则整体为"高"
+        for (const [key, rules] of Object.entries(qualityRules)) {
+            if (issuesConfig[key]) {
+                const hasHigh = rules.some(r => r.severity === '高');
+                const hasMid = rules.some(r => r.severity === '中');
+                issuesConfig[key].severity = hasHigh ? 'high' : hasMid ? 'mid' : 'low';
+            }
+        }
+    } catch(e) { console.error('无法加载质量规则', e); }
+
+    renderIssues();
+}
+
+function renderIssues() {
+    const el = document.getElementById('issueList');
+    el.innerHTML = Object.entries(issuesConfig).map(([key, cfg]) => {
+        const rules = qualityRules[key] || [];
+        const hasRules = rules.length > 0;
+        return `
+        <div class="issue-row" style="flex-wrap:wrap">
+            <span class="label">${cfg.label}</span>
+            <span class="desc">${cfg.desc}</span>
+            <span class="severity ${cfg.severity === 'high' ? 'sev-high' : cfg.severity === 'mid' ? 'sev-mid' : 'sev-low'}">${cfg.severity === 'high' ? '高' : cfg.severity === 'mid' ? '中' : '低'}</span>
+            <input type="range" min="0" max="30" value="${cfg.pct}" step="1"
+                   oninput="document.getElementById('v_${key}').textContent=this.value+'%'; issuesConfig['${key}'].pct=parseInt(this.value)">
+            <span class="pct" id="v_${key}">${cfg.pct}%</span>
+            ${hasRules ? `<span class="expand-btn" id="btn_${key}" onclick="toggleRules('${key}')" title="查看检测规则">▶</span>` : `<span style="width:16px;display:inline-block"></span>`}
+            ${hasRules ? `
+            <div class="rules-detail" id="rules_${key}" style="width:100%">
+                ${rules.map(r => `
+                <div class="rule-item">
+                    <span class="rid">${r.rule_id}</span>
+                    <span style="color:#555">${r.description}</span>
+                    <span style="color:#999;font-size:0.75rem;margin-left:8px">${r.table_name}.${r.field_name}</span>
+                    <span style="float:right;font-size:0.7rem" class="severity ${r.severity==='高'?'sev-high':r.severity==='中'?'sev-mid':'sev-low'}">${r.severity}</span>
+                </div>`).join('')}
+            </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function toggleRules(key) {
+    const detail = document.getElementById('rules_' + key);
+    const btn = document.getElementById('btn_' + key);
+    if (!detail || !btn) return;
+    const isOpen = detail.classList.contains('show');
+    detail.classList.toggle('show', !isOpen);
+    btn.classList.toggle('open', !isOpen);
+    btn.textContent = isOpen ? '▶' : '▼';
+}
+
+function loadPreset(type) {
+    const presets = {
+        small:  { c:100,  a:150,  t:300,  p:15 },
+        medium: { c:500,  a:750,  t:1500, p:50 },
+        large:  { c:1000, a:1500, t:3000, p:80 },
+    };
+    const p = presets[type];
+    document.getElementById('customerCount').value = p.c;
+    document.getElementById('accountCount').value = p.a;
+    document.getElementById('transactionCount').value = p.t;
+    document.getElementById('productCount').value = p.p;
+    // 高亮选中按钮
+    document.querySelectorAll('.btn-secondary').forEach(b => b.classList.remove('active'));
+    const btnId = type === 'small' ? 'presetSmall' : type === 'medium' ? 'presetMedium' : 'presetLarge';
+    document.getElementById(btnId).classList.add('active');
+}
+
+async function generate() {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+    document.getElementById('errorMsg').classList.remove('show');
+
+    const payload = {
+        customer_count: parseInt(document.getElementById('customerCount').value),
+        account_count: parseInt(document.getElementById('accountCount').value),
+        transaction_count: parseInt(document.getElementById('transactionCount').value),
+        product_count: parseInt(document.getElementById('productCount').value),
+        issues: Object.fromEntries(
+            Object.entries(issuesConfig).map(([k, v]) => [k, v.pct / 100])
+        ),
+    };
+
+    try {
+        const res = await fetch(`${API}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const err = await res.json(); throw new Error(err.detail || '生成失败'); }
+        const result = await res.json();
+
+        // 加载全部数据
+        allData = {};
+        for (const t of ['customer','account','transactions','product']) {
+            const r = await fetch(`${API}/preview?table=${t}&limit=100`);
+            const d = await r.json();
+            allData[t] = d.preview || [];
+        }
+
+        // 显示结果
+        document.getElementById('resultPanel').classList.add('active');
+        renderSummary(result.summary);
+        switchTab('customer');
+    } catch(e) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = '❌ ' + e.message;
+        el.classList.add('show');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 生成数据';
+    }
+}
+
+function renderSummary(summary) {
+    const cards = document.getElementById('summaryCards');
+    cards.innerHTML = `
+        <div class="summary-card"><div class="num">${summary.customers}</div><div class="lbl">👤 客户</div></div>
+        <div class="summary-card"><div class="num">${summary.accounts}</div><div class="lbl">💳 账户</div></div>
+        <div class="summary-card"><div class="num">${summary.transactions}</div><div class="lbl">💸 交易</div></div>
+        <div class="summary-card"><div class="num">${summary.products}</div><div class="lbl">📦 产品</div></div>
+        <div class="summary-card issues"><div class="num">${summary.issues.length}</div><div class="lbl">⚠️ 问题类型</div></div>
+    ` + (summary.issues.length ? `
+        <div style="grid-column:1/-1;background:#fffaf0;border-radius:8px;padding:12px 16px;font-size:0.85rem">
+            ${summary.issues.map(i => `<span style="margin-right:16px">⚠ <b>${i.name}</b>: ${i.description}</span>`).join('')}
+        </div>` : '');
+}
+
+function switchTab(table) {
+    currentTab = table;
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['customer','account','transactions','product'][i] === table);
+    });
+    renderTable(table);
+}
+
+function renderTable(table) {
+    const wrap = document.getElementById('tableWrap');
+    const data = allData[table] || [];
+    const limit = data.slice(0, 50);
+
+    if (!data.length) {
+        wrap.innerHTML = '<div class="loading">暂无数据</div>';
+        return;
+    }
+
+    const cols = Object.keys(limit[0]);
+    const nullFields = new Set();
+    // 标记空值字段
+    for (const row of limit) {
+        for (const k of cols) {
+            if (row[k] === null || row[k] === undefined) nullFields.add(k);
+        }
+    }
+
+    wrap.innerHTML = `
+        <table>
+            <thead><tr>${cols.map(c => `<th>${c} ${nullFields.has(c)?'⚠':''}</th>`).join('')}</tr></thead>
+            <tbody>
+                ${limit.map((row, i) => `<tr>
+                    ${cols.map(c => {
+                        let v = row[c];
+                        let cls = '';
+                        if (v === null || v === undefined) { v = 'NULL'; cls = 'null-val'; }
+                        else if (typeof v === 'number' && v < 0) cls = 'bad-val';
+                        else if (c === 'birth_date' && v && v.startsWith('2027')) cls = 'bad-val';
+                        return `<td class="${cls}">${v}</td>`;
+                    }).join('')}
+                </tr>`).join('')}
+            </tbody>
+        </table>
+        ${data.length > 50 ? `<div style="padding:12px;color:#999;text-align:center">仅显示前50条，共 ${data.length} 条</div>` : ''}
+    `;
+}
+
+async function downloadJSON() {
+    // 通过API下载完整数据（不限100条）
+    const tables = ['customer','account','transactions','product'];
+    const fullData = {};
+    for (const t of tables) {
+        const r = await fetch(`${API}/download?table=${t}`);
+        const d = await r.json();
+        fullData[t] = d.data || [];
+    }
+    const blob = new Blob([JSON.stringify(fullData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'financial_data.json'; a.click();
+    URL.revokeObjectURL(url);
+}
+
+async function downloadCSV() {
+    // 通过API下载完整数据
+    const r = await fetch(`${API}/download?table=${currentTab}`);
+    const d = await r.json();
+    const data = d.data || [];
+    if (!data.length) return;
+    const cols = Object.keys(data[0]);
+    const csv = [cols.join(',')];
+    for (const row of data.slice(0, 2000)) {
+        csv.push(cols.map(c => {
+            let v = row[c];
+            if (v === null || v === undefined) return '';
+            if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) v = '"' + v.replace(/"/g,'""') + '"';
+            return v;
+        }).join(','));
+    }
+    const blob = new Blob(['﻿' + csv.join('\n')], {type: 'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${currentTab}.csv`; a.click();
+    URL.revokeObjectURL(url);
+}
+
+init();
+</script>
+</body>
+</html>
