@@ -9,8 +9,8 @@
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
 .header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 0 32px; display: flex; align-items: center; gap: 16px; height: 56px; }
 .header a { color: #7eb8da; text-decoration: none; font-size: 0.82rem; }
-.header h1 { font-size: 1.1rem; font-weight: 600; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+.header h1 { font-size: 1.3rem; font-weight: 600; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 /* 导航栏 */
 .nav-steps { display: flex; align-items: center; justify-content: space-between; padding: 16px 40px; margin-bottom: 20px; }
@@ -18,7 +18,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
 .nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
-.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-step.ready { color: #333; background: #fff; border: 1px solid #d9d9d9; cursor: pointer; }
+.nav-step.ready:hover { border-color: #4a90d9; color: #4a90d9; }
+.nav-step.locked { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
 .nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
 .nav-connector.done { border-color: #b7eb8f; border-style: solid; }
 
@@ -42,7 +44,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .cat-framework { background: #fff7e6; color: #d48806; }
 .toggle-btn { padding: 4px 14px; border-radius: 12px; border: none; font-size: 0.78rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
 .toggle-on { background: #52c41a; color: #fff; }
-.toggle-off { background: #f0f0f0; color: #bbb; }
+.toggle-on:hover { background: #389e0d; }
+.toggle-off { background: #fff2f0; color: #cf1322; border: 1px solid #ffa39e; }
+.toggle-off:hover { background: #ffd8d2; }
 
 .footer { text-align: center; padding: 20px; color: #bbb; font-size: 0.75rem; }
 </style>
@@ -51,22 +55,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 <div class="header">
   <a href="/">← 首页</a>
-  <h1>评估指标管理</h1>
+  <h1>公司洗钱风险评估</h1>
   <span style="flex:1"></span>
 </div>
 
 <div class="container">
 
   <!-- 导航栏：当前在评估指标 -->
-  <div class="nav-steps">
-    <a href="/import/" class="nav-step done">✓ 数据导入</a>
-    <span class="nav-connector done"></span>
-    <span class="nav-step active">● 评估指标</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 执行评估</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 报告生成</span>
-  </div>
+  <div class="nav-steps" id="navSteps"></div>
 
   <div class="panel">
     <div class="toolbar">
@@ -83,7 +79,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     <div style="overflow-x:auto">
       <table class="items-table">
         <thead><tr>
-          <th>启用</th><th>维度</th><th>指标名称</th><th>类型</th><th>权重</th><th>高风险阈值</th><th>中风险阈值</th><th>说明</th>
+          <th>启用</th><th>指标状态</th><th>指标编号</th><th>维度</th><th>指标名称</th><th>类型</th><th>说明</th>
         </tr></thead>
         <tbody id="itemsBody"></tbody>
       </table>
@@ -95,6 +91,51 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <div class="footer">© 2026 金融合规智能平台</div>
 
 <script>
+// ── 动态导航 ──
+async function renderNav(step) {
+  const steps = [
+    { num: 1, label: '数据导入', href: '/import/' },
+    { num: 2, label: '评估指标', href: '/aml/items.html' },
+    { num: 3, label: '执行评估', href: '/aml/' },
+    { num: 4, label: '报告生成', href: '/report/' },
+  ];
+  let hasData = false, hasHistory = false;
+  try {
+    const sd = await (await fetch('/api/import/status')).json();
+    hasData = sd.status === 'ok' && Object.values(sd.counts || {}).some(c => c > 0);
+  } catch(e) {}
+  try {
+    const hd = await (await fetch('/api/aml/history?limit=1')).json();
+    hasHistory = hd.status === 'ok' && (hd.history || []).length > 0;
+  } catch(e) {}
+  const canEnter = (n) => {
+    if (n <= 2) return true;
+    if (n === 3) return hasData;
+    if (n === 4) return hasHistory;
+    return false;
+  };
+  const isDone = (n) => {
+    if (n === 1) return hasData;
+    if (n === 2) return hasData;
+    if (n === 3) return hasHistory;
+    if (n === 4) return hasHistory && localStorage.getItem('report_done') === '1';
+    return false;
+  };
+  let html = '';
+  steps.forEach((s, i) => {
+    if (i > 0) html += `<span class="nav-connector${isDone(s.num) ? ' done' : ''}"></span>`;
+    let cls, icon;
+    if (s.num === step) { cls = 'active'; icon = '●'; }
+    else if (canEnter(s.num)) { cls = isDone(s.num) ? 'done' : 'ready'; icon = isDone(s.num) ? '✓' : '○'; }
+    else { cls = 'locked'; icon = '🔒'; }
+    const tag = cls === 'locked' ? 'span' : 'a';
+    const href = cls !== 'locked' ? ` href="${s.href}"` : '';
+    html += `<${tag} class="nav-step ${cls}"${href}>${icon} ${s.label}</${tag}>`;
+  });
+  document.getElementById('navSteps').innerHTML = html;
+}
+renderNav(2);
+
 const dimNames = { customer: '客户风险', product: '产品/业务风险', channel: '渠道风险', geography: '地域风险' };
 const dimClass = { customer: 'dim-customer', product: 'dim-product', channel: 'dim-channel', geography: 'dim-geo' };
 
@@ -106,18 +147,29 @@ async function loadItems() {
   document.getElementById('itemCount').textContent = `共 ${items.length} 项`;
 
   const tbody = document.getElementById('itemsBody');
-  tbody.innerHTML = items.map(it => `
-    <tr>
-      <td><button class="toggle-btn ${it.enabled ? 'toggle-on' : 'toggle-off'}" onclick="toggleItem('${it.item_key}', ${it.enabled})">${it.enabled ? '启用' : '禁用'}</button></td>
+  // 生成指标编号 (cust-001, prod-001, ...)
+  const counters = {};
+  const codeMap = {};
+  items.forEach(it => {
+    const prefix = {customer:'cust',product:'prod',channel:'chan',geography:'geo'}[it.dimension] || 'oth';
+    counters[prefix] = (counters[prefix] || 0) + 1;
+    codeMap[it.item_key] = prefix + '-' + String(counters[prefix]).padStart(2, '0');
+  });
+
+  tbody.innerHTML = items.map(it => {
+    const isOn = it.enabled === 1;
+    const gray = isOn ? '' : 'opacity:0.45';
+    return `
+    <tr style="${gray}">
+      <td><button class="toggle-btn ${isOn ? 'toggle-off' : 'toggle-on'}" onclick="toggleItem('${it.item_key}', ${it.enabled})">${isOn ? '禁用' : '启用'}</button></td>
+      <td style="font-weight:600;${isOn ? 'color:#389e0d' : 'color:#bbb'}">${isOn ? '启用中' : '禁用中'}</td>
+      <td style="font-family:monospace;font-size:0.82rem;color:#888">${codeMap[it.item_key]}</td>
       <td><span class="dim-tag ${dimClass[it.dimension] || ''}">${dimNames[it.dimension] || it.dimension}</span></td>
       <td><b>${it.name}</b></td>
       <td><span class="cat-tag ${it.category === 'data_driven' ? 'cat-data' : 'cat-framework'}">${it.category === 'data_driven' ? '数据驱动' : '框架评估'}</span></td>
-      <td>${(it.weight * 100).toFixed(0)}%</td>
-      <td>${it.threshold_high != null ? (it.threshold_high > 1 ? it.threshold_high : (it.threshold_high * 100).toFixed(0) + '%') : '—'}</td>
-      <td>${it.threshold_mid != null ? (it.threshold_mid > 1 ? it.threshold_mid : (it.threshold_mid * 100).toFixed(0) + '%') : '—'}</td>
-      <td style="font-size:0.8rem;color:#888;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.description || ''}">${it.description || ''}</td>
-    </tr>
-  `).join('');
+      <td style="font-size:0.82rem;color:#666;max-width:320px">${it.description || ''}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function toggleItem(itemKey, enabled) {

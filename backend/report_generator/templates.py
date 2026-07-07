@@ -21,27 +21,30 @@ DATA_SOURCES = [
 
 PRESET_TEMPLATES = [
     {
-        "id": "tpl_quality",
-        "name": "数据质量报告",
-        "preset": True,
-        "sections": [
-            {"title": "一、数据概况", "source": "data_summary"},
-            {"title": "二、数据质量评估", "source": "quality_scan"},
-            {"title": "三、主要问题发现", "source": "quality_scan"},
-            {"title": "四、整改建议", "source": "quality_scan"},
-            {"title": "五、结论", "source": "manual"},
-        ],
-    },
-    {
         "id": "tpl_aml",
-        "name": "反洗钱风险评估报告",
+        "name": "反洗钱风险评估报告-V0",
         "preset": True,
         "sections": [
-            {"title": "一、评估概要", "source": "data_summary"},
-            {"title": "二、综合风险评级", "source": "aml_assessment"},
-            {"title": "三、四维度风险评估详情", "source": "aml_assessment"},
-            {"title": "四、整改建议", "source": "aml_assessment"},
-            {"title": "五、结论", "source": "manual"},
+            {
+                "title": "一、评估概要",
+                "content": "评估机构：{{公司名称}}\n评估期间：{{报告期间}}\n密级：{{密级}}\n编制部门：{{编制部门}}\n评估日期：{{评估日期}}\n\n本次反洗钱风险自评估覆盖数据范围如下：\n  · 客户数量：{{客户数}}\n  · 账户数量：{{账户数}}\n  · 交易数量：{{交易数}}\n  · 产品数量：{{产品数}}\n\n评估依据：《法人金融机构洗钱和恐怖融资风险自评估指引》及相关监管要求。"
+            },
+            {
+                "title": "二、综合风险评级",
+                "content": "经四维评估模型（客户风险·产品/业务风险·渠道风险·地域风险）综合计算，本次评估结果如下：\n\n综合风险评分：{{综合评分}}\n风险等级：{{风险等级}}\n\n各维度得分详见第三章。"
+            },
+            {
+                "title": "三、四维度风险评估详情",
+                "content": "{{四维详情}}"
+            },
+            {
+                "title": "四、整改建议",
+                "content": "根据本次评估结果，提出以下整改建议：\n\n{{整改建议}}"
+            },
+            {
+                "title": "五、结论与后续计划",
+                "content": "综合来看，{{公司名称}}在{{报告期间}}的反洗钱风险等级为{{风险等级}}（综合评分{{综合评分}}分）。\n\n针对上述风险点和整改建议，本机构将制定详细的整改计划，明确责任人和完成时限，并在下一次评估中对整改效果进行跟踪验证。\n\n编制人：{{编制部门}}\n日期：{{评估日期}}"
+            },
         ],
     },
 ]

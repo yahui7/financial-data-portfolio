@@ -7,7 +7,7 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
-.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 64px; }
+.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 56px; }
 .header a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
 .header h1 { font-size: 1.3rem; }
 .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
@@ -18,7 +18,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
 .nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
-.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-step.ready { color: #333; background: #fff; border: 1px solid #d9d9d9; cursor: pointer; }
+.nav-step.ready:hover { border-color: #4a90d9; color: #4a90d9; }
+.nav-step.locked { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
 .nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
 .nav-connector.done { border-color: #b7eb8f; border-style: solid; }
 
@@ -79,21 +81,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 <div class="header">
   <a href="/">← 首页</a>
-  <h1>报告生成</h1>
+  <h1>公司洗钱风险评估</h1>
   <span style="flex:1"></span>
 </div>
 
 <div class="container">
 
-  <div class="nav-steps">
-    <a href="/import/" class="nav-step done">✓ 数据导入</a>
-    <span class="nav-connector done"></span>
-    <a href="/aml/items.html" class="nav-step done">✓ 评估指标</a>
-    <span class="nav-connector done"></span>
-    <a href="/aml/" class="nav-step done">✓ 执行评估</a>
-    <span class="nav-connector done"></span>
-    <span class="nav-step active">● 报告生成</span>
-  </div>
+  <div class="nav-steps" id="navSteps"></div>
   <div class="error-msg" id="errorMsg"></div>
   <div class="success-msg" id="successMsg"></div>
 
@@ -107,15 +101,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     </div>
     <div class="config-row">
       <label>标题:</label>
-      <input type="text" id="rptTitle" value="数据质量报告">
+      <input type="text" id="rptTitle" value="反洗钱风险评估报告">
     </div>
     <div class="config-row">
       <label>编号:</label>
-      <input type="text" id="rptNo" value="RPT-2026-001">
+      <input type="text" id="rptNo" value="RPT-2026-001" style="max-width:160px">
       <label>编制人:</label>
-      <input type="text" id="rptAuthor" value="王亚慧" style="max-width:150px">
+      <input type="text" id="rptAuthor" value="合规部" style="max-width:130px">
       <label>日期:</label>
       <input type="date" id="rptDate">
+    </div>
+    <div class="config-row" style="margin-top:8px">
+      <label>机构:</label>
+      <input type="text" id="rptCompany" value="" placeholder="如：XX基金管理有限公司" style="max-width:220px">
+      <label>期间:</label>
+      <input type="text" id="rptPeriod" value="" placeholder="如：2026年Q1" style="max-width:140px">
+      <label>密级:</label>
+      <select id="rptLevel" style="max-width:110px"><option>内部</option><option>内部机密</option><option>机密</option></select>
     </div>
     <div style="margin-top:12px;display:flex;gap:8px">
       <button class="btn btn-primary" id="genBtn" onclick="generate()">🚀 生成报告</button>
@@ -134,7 +136,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
         <label>名称:</label>
         <input type="text" id="editTplName" placeholder="模板名称">
       </div>
-      <div style="margin-bottom:8px;font-weight:600;font-size:0.85rem">章节列表 <button class="btn-link" onclick="addSection()">+ 添加章节</button></div>
+      <div style="margin-bottom:8px;font-weight:600;font-size:0.85rem">章节列表 <button class="btn-link" onclick="addSection()">+ 添加章节</button>
+        <span style="font-weight:400;font-size:0.78rem;color:#999;margin-left:12px">章节内容中可使用 {{变量}} 语法</span>
+        <select onchange="insertTplVar(this.value);this.value=''" style="margin-left:8px;padding:3px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:0.75rem">
+          <option value="">插入变量...</option>
+          <option value="{{公司名称}}">公司名称</option>
+          <option value="{{报告期间}}">报告期间</option>
+          <option value="{{密级}}">密级</option>
+          <option value="{{编制部门}}">编制部门</option>
+          <option value="{{评估日期}}">评估日期</option>
+          <option value="{{综合评分}}">综合评分</option>
+          <option value="{{风险等级}}">风险等级</option>
+          <option value="{{客户数}}">客户数</option>
+          <option value="{{账户数}}">账户数</option>
+          <option value="{{交易数}}">交易数</option>
+          <option value="{{产品数}}">产品数</option>
+          <option value="{{四维详情}}">四维度评估详情</option>
+          <option value="{{整改建议}}">整改建议列表</option>
+        </select>
+      </div>
       <div id="editTplSections"></div>
       <div style="margin-top:12px;display:flex;gap:8px">
         <button class="btn btn-primary btn-sm" onclick="saveTemplate()">💾 保存模板</button>
@@ -153,6 +173,52 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <div class="footer"><p>Python FastAPI · SQLite · AI-Assisted | © 2026 王亚慧</p></div>
 
 <script>
+// ── 动态导航 ──
+async function renderNav(step) {
+  const steps = [
+    { num: 1, label: '数据导入', href: '/import/' },
+    { num: 2, label: '评估指标', href: '/aml/items.html' },
+    { num: 3, label: '执行评估', href: '/aml/' },
+    { num: 4, label: '报告生成', href: '/report/' },
+  ];
+  let hasData = false, hasHistory = false;
+  try {
+    const sd = await (await fetch('/api/import/status')).json();
+    hasData = sd.status === 'ok' && Object.values(sd.counts || {}).some(c => c > 0);
+  } catch(e) {}
+  try {
+    const hd = await (await fetch('/api/aml/history?limit=1')).json();
+    hasHistory = hd.status === 'ok' && (hd.history || []).length > 0;
+  } catch(e) {}
+  const canEnter = (n) => {
+    if (n <= 2) return true;
+    if (n === 3) return hasData;
+    if (n === 4) return hasHistory;
+    return false;
+  };
+  const isDone = (n) => {
+    if (n === 1) return hasData;
+    if (n === 2) return hasData;
+    if (n === 3) return hasHistory;
+    if (n === 4) return hasHistory && localStorage.getItem('report_done') === '1';
+    return false;
+  };
+  let html = '';
+  steps.forEach((s, i) => {
+    if (i > 0) html += `<span class="nav-connector${isDone(s.num) ? ' done' : ''}"></span>`;
+    let cls, icon;
+    if (s.num === step) { cls = 'active'; icon = '●'; }
+    else if (canEnter(s.num)) { cls = isDone(s.num) ? 'done' : 'ready'; icon = isDone(s.num) ? '✓' : '○'; }
+    else { cls = 'locked'; icon = '🔒'; }
+    const tag = cls === 'locked' ? 'span' : 'a';
+    const href = cls !== 'locked' ? ` href="${s.href}"` : '';
+    html += `<${tag} class="nav-step ${cls}"${href}>${icon} ${s.label}</${tag}>`;
+  });
+  document.getElementById('navSteps').innerHTML = html;
+}
+renderNav(4);
+
+
 const API = '/api/report';
 let allTemplates = [];
 let currentTpl = null;
@@ -180,10 +246,8 @@ async function loadTemplates() {
 }
 
 function updateTitle() {
-  const tpl = currentTpl;
-  if (tpl) {
-    const names = { tpl_quality: '数据质量报告', tpl_aml: '反洗钱风险评估报告' };
-    document.getElementById('rptTitle').value = names[tpl.id] || tpl.name || '';
+  if (currentTpl) {
+    document.getElementById('rptTitle').value = currentTpl.name || '';
   }
 }
 
@@ -199,41 +263,58 @@ async function generate() {
   btn.disabled = true; btn.textContent = '⏳ 生成中...';
   clearMsgs();
 
-  const info = {
+  if (!currentTpl) { showError('请先选择模板'); return; }
+  // 直接使用模板内容，替换变量
+  const sections = currentTpl.sections.map(s => ({
+    title: s.title,
+    content: resolveVars(s.content || ''),
+  }));
+  currentReport = {
     title: document.getElementById('rptTitle').value,
     report_no: document.getElementById('rptNo').value,
     author: document.getElementById('rptAuthor').value,
     date: document.getElementById('rptDate').value,
-    template_id: currentTpl?.id || 'tpl_quality',
+    sections,
   };
-
   try {
-    const r = await fetch(`${API}/generate`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(info),
-    });
-    const d = await r.json();
-    if (d.status === 'error') { showError(d.message); return; }
-    currentReport = d.report;
     renderPreview(currentReport);
     document.getElementById('previewPanel').style.display = 'block';
     document.getElementById('wordBtn').disabled = false;
     document.getElementById('copyBtn').disabled = false;
     document.getElementById('previewPanel').scrollIntoView({behavior:'smooth'});
+    localStorage.setItem('report_done', '1'); renderNav(4);
   } catch(e) { showError('生成失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '🚀 生成报告'; }
 }
 
+// 页面加载
+async function init() {
+  document.getElementById('rptDate').value = new Date().toISOString().slice(0, 10);
+  await loadDataVars();
+  await loadTemplates();
+}
+init();
+
 function renderPreview(report) {
   document.getElementById('previewContent').innerHTML = report.sections.map((s, i) => `
     <div class="section-block">
-      <div class="section-title">
-        <span>${s.title}</span>
-        <span class="src-tag">${s.source === 'manual' ? '手动填写' : '自动填充'}</span>
-      </div>
-      <textarea id="sec_${i}" oninput="onSectionEdit()">${s.content}</textarea>
+      <div class="section-title"><span>${s.title}</span></div>
+      <textarea id="sec_${i}" oninput="onSectionEdit()" style="min-height:100px">${s.content || ''}</textarea>
     </div>
   `).join('');
+}
+
+let activeTextarea = null;
+document.addEventListener('focusin', e => { if (e.target.tagName === 'TEXTAREA') activeTextarea = e.target; });
+
+function insertVar(v) {
+  if (!activeTextarea) return;
+  const ta = activeTextarea;
+  const start = ta.selectionStart;
+  ta.value = ta.value.slice(0, start) + v + ta.value.slice(ta.selectionEnd);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = start + v.length;
+  onSectionEdit();
 }
 
 function onSectionEdit() {
@@ -244,11 +325,65 @@ function onSectionEdit() {
   });
 }
 
+// 变量替换
+function resolveVars(content) {
+  const vars = {
+    '公司名称': document.getElementById('rptCompany').value || '(未填写)',
+    '报告期间': document.getElementById('rptPeriod').value || '(未填写)',
+    '密级': document.getElementById('rptLevel').value || '内部',
+    '编制部门': document.getElementById('rptAuthor').value || '合规部',
+    '评估日期': document.getElementById('rptDate').value || new Date().toISOString().slice(0,10),
+    '综合评分': dataVars.overall_score != null ? dataVars.overall_score + ' 分' : '(未评估)',
+    '风险等级': dataVars.risk_level || '(未评估)',
+    '客户数': dataVars.customers != null ? dataVars.customers + ' 人' : '—',
+    '账户数': dataVars.accounts != null ? dataVars.accounts + ' 个' : '—',
+    '交易数': dataVars.transactions != null ? dataVars.transactions + ' 笔' : '—',
+    '产品数': dataVars.products != null ? dataVars.products + ' 只' : '—',
+    '四维详情': dataVars.dim_detail || '(需先执行评估)',
+    '整改建议': dataVars.recommendations || '(需先执行评估)',
+  };
+  return content.replace(/\{\{(.+?)\}\}/g, (m, key) => vars[key.trim()] || m);
+}
+
+let dataVars = {};
+
+async function loadDataVars() {
+  try {
+    const hd = await (await fetch('/api/aml/history?limit=1')).json();
+    if (hd.status === 'ok' && hd.history.length > 0) {
+      const latest = hd.history[0];
+      const rd = await (await fetch(`/api/aml/history/${latest.id}`)).json();
+      if (rd.status === 'ok') {
+        const r = rd.record;
+        dataVars.overall_score = r.overall_score;
+        dataVars.risk_level = r.risk_level;
+        dataVars.customers = r.data_summary.customers;
+        dataVars.accounts = r.data_summary.accounts;
+        dataVars.transactions = r.data_summary.transactions;
+        dataVars.products = r.data_summary.products;
+        // 四维详情文本
+        const dims = r.dimensions || {};
+        let dimText = '';
+        for (const dk of ['customer','product','channel','geography']) {
+          const dim = dims[dk] || {};
+          dimText += `\n${dim.name || dk}：${dim.score || 0} 分\n`;
+          (dim.items || []).forEach(it => { dimText += `  · [${it.risk}] ${it.name}：${it.detail}\n`; });
+        }
+        dataVars.dim_detail = dimText.trim();
+        // 整改建议
+        const recs = r.recommendations || [];
+        dataVars.recommendations = recs.map((r, i) => `${i+1}. ${r}`).join('\n');
+      }
+    }
+  } catch(e) {}
+}
+
 // ── 下载Word ──
 async function downloadWord() {
   if (!currentReport) return;
-  // 同步最新编辑内容到 sections
+  // 同步编辑 + 变量替换
   onSectionEdit();
+  currentReport.sections.forEach(s => { s.content = resolveVars(s.content || ''); });
   const info = {
     title: document.getElementById('rptTitle').value,
     report_no: document.getElementById('rptNo').value,
@@ -272,6 +407,7 @@ async function downloadWord() {
     const a = document.createElement('a'); a.href = url;
     a.download = `${info.title}_${info.date}.docx`; a.click();
     URL.revokeObjectURL(url);
+    localStorage.setItem('report_done', '1'); renderNav(4);
   } catch(e) { showError('下载失败: ' + e.message); }
 }
 
@@ -284,7 +420,7 @@ function copyReport() {
   const date = document.getElementById('rptDate').value;
   let text = `${title}\n报告编号：${no}  编制人：${author}  日期：${date}\n\n`;
   currentReport.sections.forEach(s => {
-    text += `${s.title}\n${s.content}\n\n`;
+    text += `${s.title}\n${resolveVars(s.content || '')}\n\n`;
   });
   navigator.clipboard.writeText(text).then(() => {
     showSuccess('已复制到剪贴板');
@@ -304,6 +440,7 @@ async function renderTplList() {
       <span class="tpl-name">${t.name}</span>
       <span class="tpl-tag">${t.preset ? '系统预设' : '自定义'}</span>
       <button class="btn-link" onclick="editTemplate('${t.id}')">✏️ 编辑</button>
+      <button class="btn-link" onclick="copyTemplate('${t.id}')">📋 复制</button>
       ${!t.preset ? `<button class="btn-link danger" onclick="delTemplate('${t.id}')">🗑 删除</button>` : ''}
     </div>
   `).join('');
@@ -326,19 +463,13 @@ function editTemplate(tplId) {
   document.getElementById('editTplName').value = tpl.name;
   const sections = tpl.sections || [];
   document.getElementById('editTplSections').innerHTML = sections.map((s, i) => `
-    <div class="tpl-section-item">
-      <span style="font-size:0.8rem;color:#999;min-width:20px">${i+1}.</span>
-      <input value="${s.title}" onchange="updateEditSection(${i},'title',this.value)" placeholder="章节标题">
-      <select onchange="updateEditSection(${i},'source',this.value)">
-        <option value="data_summary" ${s.source==='data_summary'?'selected':''}>数据概览</option>
-        <option value="quality_scan" ${s.source==='quality_scan'?'selected':''}>质量评分</option>
-        <option value="quality_issues" ${s.source==='quality_issues'?'selected':''}>问题发现</option>
-        <option value="quality_recommendations" ${s.source==='quality_recommendations'?'selected':''}>质量建议</option>
-        <option value="aml_assessment" ${s.source==='aml_assessment'?'selected':''}>AML评估</option>
-        <option value="aml_recommendations" ${s.source==='aml_recommendations'?'selected':''}>AML建议</option>
-        <option value="manual" ${s.source==='manual'?'selected':''}>手动填写</option>
-      </select>
-      <button class="btn-link danger" onclick="removeSection(${i})">×</button>
+    <div class="tpl-section-item" style="flex-direction:column;align-items:stretch;padding-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="font-size:0.8rem;color:#999;min-width:20px">${i+1}.</span>
+        <input value="${s.title}" placeholder="章节标题" style="flex:1">
+        <button class="btn-link danger" onclick="this.closest('.tpl-section-item').remove()">×</button>
+      </div>
+      <textarea class="tpl-content-area" placeholder="章节内容，可使用 {{变量名}}" style="width:100%;min-height:100px;border:1px solid #e8e8e8;border-radius:4px;padding:8px 10px;font-size:0.82rem;font-family:inherit;resize:vertical;line-height:1.6">${s.content || ''}</textarea>
     </div>
   `).join('');
 }
@@ -353,21 +484,26 @@ function addSection() {
   const i = container.children.length;
   const div = document.createElement('div');
   div.className = 'tpl-section-item';
+  div.style.cssText = 'flex-direction:column;align-items:stretch;padding-bottom:10px';
   div.innerHTML = `
-    <span style="font-size:0.8rem;color:#999;min-width:20px">${i+1}.</span>
-    <input value="" placeholder="章节标题">
-    <select>
-      <option value="data_summary">数据概览</option>
-      <option value="quality_scan">质量评分</option>
-      <option value="quality_issues">问题发现</option>
-      <option value="quality_recommendations">质量建议</option>
-      <option value="aml_assessment">AML评估</option>
-      <option value="aml_recommendations">AML建议</option>
-      <option value="manual" selected>手动填写</option>
-    </select>
-    <button class="btn-link danger" onclick="this.parentElement.remove()">×</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:0.8rem;color:#999;min-width:20px">${i+1}.</span>
+      <input value="" placeholder="章节标题" style="flex:1">
+      <button class="btn-link danger" onclick="this.closest('.tpl-section-item').remove()">×</button>
+    </div>
+    <textarea class="tpl-content-area" placeholder="章节内容，可使用 {{变量名}}" style="width:100%;min-height:100px;border:1px solid #e8e8e8;border-radius:4px;padding:8px 10px;font-size:0.82rem;font-family:inherit;resize:vertical;line-height:1.6"></textarea>
   `;
   container.appendChild(div);
+}
+
+function insertTplVar(v) {
+  // 插入到当前编辑的模板章节的 textarea 中
+  const tas = document.querySelectorAll('#editTplSections .tpl-content-area');
+  const ta = [...tas].find(t => t === document.activeElement) || tas[tas.length - 1];
+  if (!ta) return;
+  const start = ta.selectionStart;
+  ta.value = ta.value.slice(0, start) + v + ta.value.slice(ta.selectionEnd);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = start + v.length;
 }
 
 function removeSection(idx) {
@@ -382,8 +518,9 @@ async function saveTemplate() {
   const sections = [];
   sectionEls.forEach(el => {
     const title = el.querySelector('input').value.trim();
-    const source = el.querySelector('select').value;
-    if (title) sections.push({ title, source });
+    const ta = el.querySelector('.tpl-content-area');
+    const content = ta ? ta.value.trim() : '';
+    if (title) sections.push({ title, content });
   });
 
   if (!sections.length) { showError('至少需要一个章节'); return; }
@@ -410,6 +547,23 @@ function cancelEdit() {
   document.getElementById('editTplSections').innerHTML = '';
 }
 
+async function copyTemplate(tplId) {
+  const tpl = allTemplates.find(t => t.id === tplId);
+  if (!tpl) return;
+  const data = {
+    id: null,
+    name: tpl.name + ' (副本)',
+    sections: tpl.sections.map(s => ({ title: s.title, content: s.content || '' })),
+  };
+  await fetch(`${API}/templates`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  await loadTemplates();
+  renderTplList();
+  showSuccess('模板已复制');
+}
+
 async function delTemplate(tplId) {
   if (!confirm('确定删除此模板？')) return;
   await fetch(`${API}/templates/${tplId}`, { method: 'DELETE' });
@@ -433,7 +587,6 @@ function clearMsgs() {
   document.getElementById('successMsg').classList.remove('show');
 }
 
-init();
 </script>
 </body>
 </html>

@@ -8,10 +8,10 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
 
-.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 64px; }
+.header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 16px 32px; display: flex; align-items: center; gap: 16px; height: 56px; }
 .header a { color: #7eb8da; text-decoration: none; font-size: 0.85rem; }
 .header h1 { font-size: 1.3rem; }
-.container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 /* 步骤说明 */
 .steps { display: flex; gap: 16px; margin-bottom: 24px; }
@@ -89,7 +89,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
 .nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
-.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-step.ready { color: #333; background: #fff; border: 1px solid #d9d9d9; cursor: pointer; }
+.nav-step.ready:hover { border-color: #4a90d9; color: #4a90d9; }
+.nav-step.locked { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
 .nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
 .nav-connector.done { border-color: #b7eb8f; border-style: solid; }
 </style>
@@ -98,21 +100,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 <div class="header">
   <a href="/">← 首页</a>
-  <h1>📥 数据导入</h1>
+  <h1>公司洗钱风险评估</h1>
+  <span style="flex:1"></span>
 </div>
 
 <div class="container">
 
   <!-- 导航栏 -->
-  <div class="nav-steps">
-    <span class="nav-step active">● 数据导入</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 评估指标</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 执行评估</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 报告生成</span>
-  </div>
+  <div class="nav-steps" id="navSteps"></div>
 
   <!-- 步骤说明 -->
   <div class="steps">
@@ -193,6 +188,74 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <div class="footer">© 2026 金融合规智能平台</div>
 
 <script>
+// ── 动态导航 ──
+async function renderNav(step) {
+  const steps = [
+    { num: 1, label: '数据导入', href: '/import/' },
+    { num: 2, label: '评估指标', href: '/aml/items.html' },
+    { num: 3, label: '执行评估', href: '/aml/' },
+    { num: 4, label: '报告生成', href: '/report/' },
+  ];
+  let hasData = false, hasHistory = false;
+  try {
+    const [sr, hr] = await Promise.all([
+      fetch('/api/import/status'),
+      fetch('/api/aml/history?limit=1'),
+    ]);
+    const sd = await sr.json();
+    const hd = await hr.json();
+    hasData = sd.status === 'ok' && Object.values(sd.counts || {}).some(c => c > 0);
+    hasHistory = hd.status === 'ok' && (hd.history || []).length > 0;
+  } catch(e) {}
+  const canEnter = (n) => {
+    if (n <= 2) return true;
+    if (n === 3) return hasData;
+    if (n === 4) return hasHistory;
+    return false;
+  };
+  const isDone = (n) => {
+    if (n === 1) return hasData;
+    if (n === 2) return hasData;
+    if (n === 3) return hasHistory;
+    if (n === 4) return hasHistory && localStorage.getItem('report_done') === '1';
+    return false;
+  };
+  let html = '';
+  steps.forEach((s, i) => {
+    if (i > 0) html += `<span class="nav-connector${isDone(s.num) ? ' done' : ''}"></span>`;
+    let cls, icon;
+    if (s.num === step) { cls = 'active'; icon = '●'; }
+    else if (canEnter(s.num)) { cls = isDone(s.num) ? 'done' : 'ready'; icon = isDone(s.num) ? '✓' : '○'; }
+    else { cls = 'locked'; icon = '🔒'; }
+    const tag = cls === 'locked' ? 'span' : 'a';
+    const href = cls !== 'locked' ? ` href="${s.href}"` : '';
+    html += `<${tag} class="nav-step ${cls}"${href}>${icon} ${s.label}</${tag}>`;
+  });
+  document.getElementById('navSteps').innerHTML = html;
+}
+renderNav(1);
+// 页面加载时检查已有数据
+(async function checkExisting() {
+  try {
+    const r = await fetch('/api/import/status');
+    const d = await r.json();
+    if (d.status === 'ok') {
+      for (const [table, count] of Object.entries(d.counts)) {
+        if (count > 0) {
+          const card = document.querySelector(`[data-table="${table}"]`);
+          if (card) {
+            card.classList.add('done');
+            document.getElementById(`result-${table}`).textContent = `已导入 ${count} 条 ✓`;
+          }
+        }
+      }
+      if (Object.values(d.counts).some(c => c > 0)) {
+        document.getElementById('confirmBtn').disabled = false;
+      }
+    }
+  } catch(e) {}
+})();
+
 const TABLES = ['customer', 'account', 'trans_record', 'product'];
 const LABELS = { customer: '客户表', account: '账户表', trans_record: '交易表', product: '产品表' };
 let uploadedFiles = {};  // { table: { valid_count, total_rows } }
@@ -316,6 +379,7 @@ async function confirmImport() {
   if (d.status === 'ok') {
     showImportResult(d);
     uploadedFiles = {};
+    renderNav(1);  // 刷新导航：导入完成后解锁后续步骤
     btn.textContent = `✅ 完成`;
     setTimeout(() => { btn.textContent = '✅ 确认导入'; btn.disabled = false; }, 3000);
   } else {
@@ -336,8 +400,8 @@ function showImportResult(d) {
 
     html += `<div style="margin-bottom:12px;padding:12px 16px;border-left:3px solid ${color};background:#fafafa;border-radius:4px">`;
     html += `<b>${icon} ${info.label}</b>: `;
-    html += `上传 ${info.total_rows} 条，成功导入 ${info.imported} 条`;
-    if (info.warnings > 0) html += `，${info.warnings} 条有校验警告`;
+    html += `总计 ${info.total_rows} 条全部写入 ✓`;
+    if (info.warnings > 0) html += `，<span style="color:#d48806">其中 ${info.warnings} 条数据有质量问题</span>`;
     if (hasErrors) {
       html += `，<span style="color:#e74c3c">${info.import_errors.length} 条SQL写入失败</span>`;
       html += '<div style="overflow-x:auto;margin-top:8px"><table class="preview-table"><thead><tr><th>行号</th>';
@@ -397,6 +461,7 @@ function showQuality(q) {
 async function clearData() {
   if (!confirm('确定要清空所有数据吗？此操作不可恢复。')) return;
   await fetch('/api/import/clear', { method: 'POST' });
+  localStorage.removeItem('report_done');
   uploadedFiles = {};
   previewCache = {};
   document.querySelectorAll('.upload-card').forEach(c => c.classList.remove('done', 'warn', 'error'));
@@ -404,6 +469,7 @@ async function clearData() {
   document.getElementById('previewSection').classList.remove('show');
   document.getElementById('qualitySection').classList.remove('show');
   document.getElementById('confirmBtn').disabled = true;
+  renderNav(1);
   alert('数据已清空');
 }
 

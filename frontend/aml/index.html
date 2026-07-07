@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>公司洗钱风险自评估</title>
+<title>公司洗钱风险评估</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -12,10 +12,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 /* 顶栏 */
 .header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 0 32px; display: flex; align-items: center; gap: 20px; height: 56px; }
 .header a { color: #7eb8da; text-decoration: none; font-size: 0.82rem; }
-.header h1 { font-size: 1.1rem; font-weight: 600; }
+.header h1 { font-size: 1.3rem; font-weight: 600; }
 .header select { padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; font-size: 0.82rem; cursor: pointer; }
 .header select option { color: #333; background: #fff; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 /* 按钮 */
 .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
@@ -31,7 +31,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 /* 概览区：三列 */
 .overview { display: grid; grid-template-columns: 280px 1fr 260px; gap: 20px; margin-bottom: 20px; }
-.panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.panel { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.panel h3 { font-size: 0.95rem; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e8e8e8; }
 
 /* 综合评分 */
 .score-panel { padding: 28px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -126,9 +127,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
 .nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
-.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-step.ready { color: #333; background: #fff; border: 1px solid #d9d9d9; cursor: pointer; }
+.nav-step.ready:hover { border-color: #4a90d9; color: #4a90d9; }
+.nav-step.locked { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
 .nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
 .nav-connector.done { border-color: #b7eb8f; border-style: solid; }
+
+.filter-btn { padding: 5px 14px; border: 1px solid #d9d9d9; border-radius: 14px; background: #fff; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+.filter-btn:hover { border-color: #4a90d9; }
+.filter-btn.active { background: #1a1f3a; color: #fff; border-color: #1a1f3a; }
 
 /* 维度颜色 */
 .color-cust { background: #4a90e2; } .bar-cust { background: #4a90e2; } .border-cust { border-left-color: #4a90e2 !important; }
@@ -145,23 +152,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 <div class="header">
   <a href="/">← 首页</a>
-  <h1>公司洗钱风险自评估</h1>
+  <h1>公司洗钱风险评估</h1>
   <span style="flex:1"></span>
-  <a href="/aml/history.html" style="font-size:0.82rem;opacity:0.7">📈 评估历史</a>
 </div>
 
 <div class="container">
 
   <!-- 导航栏 -->
-  <div class="nav-steps">
-    <a href="/import/" class="nav-step done">✓ 数据导入</a>
-    <span class="nav-connector done"></span>
-    <a href="/aml/items.html" class="nav-step done">✓ 评估指标</a>
-    <span class="nav-connector done"></span>
-    <span class="nav-step active">● 执行评估</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 报告生成</span>
-  </div>
+  <div class="nav-steps" id="navSteps"></div>
 
   <!-- 操作栏 -->
   <div class="toolbar">
@@ -172,9 +170,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
       <option value="preset_insurance">保险模板</option>
     </select>
     <button class="btn btn-primary" id="assessBtn" onclick="runAssess()">🔍 执行评估</button>
-    <button class="btn btn-outline" id="wordBtn" disabled onclick="downloadWord()">📄 下载Word报告</button>
+    <button class="btn" id="historyBtn" onclick="toggleHistory()" style="background:#fff;color:#1a1f3a;border:1px solid #d9d9d9">📈 评估历史</button>
     <span class="assess-meta" id="assessMeta"></span>
   </div>
+
+  <!-- Dashboard 视图 -->
+  <div id="dashboardView">
 
   <!-- 概览区 -->
   <div class="overview" id="overviewRow" style="display:none">
@@ -204,6 +205,43 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
     <ul class="rec-list" id="recList"></ul>
   </div>
 
+  </div><!-- /dashboardView -->
+
+  <!-- 评估历史视图 -->
+  <div id="historyView" style="display:none">
+
+    <!-- 对比分析 -->
+    <div class="panel">
+      <h3>⚖ 对比分析</h3>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <span>评估A：</span><select id="compareA" style="padding:8px 12px;border-radius:6px;border:1px solid #d9d9d9;font-size:0.85rem;min-width:260px"></select>
+        <span style="font-weight:700;color:#999">VS</span>
+        <span>评估B：</span><select id="compareB" style="padding:8px 12px;border-radius:6px;border:1px solid #d9d9d9;font-size:0.85rem;min-width:260px"></select>
+        <button class="btn btn-primary" onclick="runCompare()">对比</button>
+      </div>
+      <div id="compareResult"></div>
+    </div>
+
+    <!-- 评估记录 -->
+    <div class="panel">
+      <h3>📋 评估记录</h3>
+      <div id="historyListContent"></div>
+    </div>
+
+    <!-- 趋势分析 -->
+    <div class="panel">
+      <h3>📈 趋势分析</h3>
+      <div class="filter-bar" style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="filter-btn active" onclick="loadTrend(0)">全部</button>
+        <button class="filter-btn" onclick="loadTrend(3)">3个月</button>
+        <button class="filter-btn" onclick="loadTrend(6)">6个月</button>
+        <button class="filter-btn" onclick="loadTrend(12)">12次</button>
+      </div>
+      <div id="trendChart" style="width:100%;height:400px"></div>
+    </div>
+
+  </div><!-- /historyView -->
+
 </div>
 
 <div class="footer">© 2026 金融合规智能平台</div>
@@ -212,6 +250,92 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 let radarInst = null;
 let lastResult = null;
 let currentPreset = 'preset_securities';
+
+// ── 动态导航 ──
+async function renderNav(step) {
+  const steps = [
+    { num: 1, label: '数据导入', href: '/import/' },
+    { num: 2, label: '评估指标', href: '/aml/items.html' },
+    { num: 3, label: '执行评估', href: '/aml/' },
+    { num: 4, label: '报告生成', href: '/report/' },
+  ];
+
+  // 查询数据库状态
+  let hasData = false, hasHistory = false;
+  try {
+    const [sr, hr] = await Promise.all([
+      fetch('/api/import/status'),
+      fetch('/api/aml/history?limit=1'),
+    ]);
+    const sd = await sr.json();
+    const hd = await hr.json();
+    hasData = sd.status === 'ok' && Object.values(sd.counts || {}).some(c => c > 0);
+    hasHistory = hd.status === 'ok' && (hd.history || []).length > 0;
+  } catch(e) {}
+
+  // 每步的解锁条件
+  const canEnter = (n) => {
+    if (n <= 2) return true;           // 导入+指标始终可进
+    if (n === 3) return hasData;       // 执行评估需有数据
+    if (n === 4) return hasHistory;    // 报告生成需有评估历史
+    return false;
+  };
+
+  const isDone = (n) => {
+    if (n === 1) return hasData;
+    if (n === 2) return hasData;
+    if (n === 3) return hasHistory;
+    if (n === 4) return hasHistory && localStorage.getItem('report_done') === '1';
+    return false;
+  };
+
+  let html = '';
+  steps.forEach((s, i) => {
+    if (i > 0) html += `<span class="nav-connector${isDone(s.num) ? ' done' : ''}"></span>`;
+    let cls, icon;
+    if (s.num === step) {
+      cls = 'active'; icon = '●';
+    } else if (canEnter(s.num)) {
+      cls = isDone(s.num) ? 'done' : 'ready';
+      icon = isDone(s.num) ? '✓' : '○';
+    } else {
+      cls = 'locked'; icon = '🔒';
+    }
+    const tag = cls === 'locked' ? 'span' : 'a';
+    const href = cls !== 'locked' ? ` href="${s.href}"` : '';
+    html += `<${tag} class="nav-step ${cls}"${href}>${icon} ${s.label}</${tag}>`;
+  });
+  document.getElementById('navSteps').innerHTML = html;
+}
+
+renderNav(3);
+// 自动加载最近一次评估结果
+(async function autoLoad() {
+  try {
+    const r = await fetch('/api/aml/history?limit=1');
+    const d = await r.json();
+    if (d.status === 'ok' && d.history.length > 0) {
+      const latest = d.history[0];
+      const rd = await (await fetch(`/api/aml/history/${latest.id}`)).json();
+      if (rd.status === 'ok' && rd.record.dimensions) {
+        const lv = {低:'低风险',中:'中风险',高:'高风险',最高:'最高风险'};
+        lastResult = {
+          status: 'ok', assessment_time: rd.record.assess_date,
+          preset_id: rd.record.preset_id, overall_score: rd.record.overall_score,
+          risk_level: rd.record.risk_level,
+          risk_level_name: lv[rd.record.risk_level] || rd.record.risk_level,
+          data_summary: rd.record.data_summary,
+          dimensions: rd.record.dimensions,
+          recommendations: rd.record.recommendations,
+        };
+        document.getElementById('presetSelect').value = rd.record.preset_id || 'preset_securities';
+        currentPreset = rd.record.preset_id || 'preset_securities';
+        renderAll(lastResult);
+        document.getElementById('assessMeta').textContent = `上次评估: ${rd.record.assess_date}`;
+      }
+    }
+  } catch(e) {}
+})();
 
 function onPresetChange() {
   currentPreset = document.getElementById('presetSelect').value;
@@ -222,12 +346,12 @@ async function runAssess() {
   btn.disabled = true; btn.textContent = '⏳ 评估中...';
 
   try {
-    const r = await fetch(`/api/aml/assess?preset_id=${currentPreset}`);
+    const r = await fetch(`/api/aml/assess?preset_id=${currentPreset}`, { method: 'POST' });
     const d = await r.json();
     if (d.status !== 'ok') { alert('评估失败: ' + (d.message || '')); return; }
     lastResult = d;
     renderAll(d);
-    document.getElementById('wordBtn').disabled = false;
+    renderNav(3);  // 评估完成后解锁报告生成
     document.getElementById('assessMeta').textContent = `评估时间: ${d.assessment_time}`;
   } catch(e) { alert('请求失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '🔍 执行评估'; }
@@ -388,35 +512,122 @@ function animateNumber(id, from, to, duration) {
   requestAnimationFrame(step);
 }
 
-function downloadWord() {
-  if (!lastResult) return;
-  const d = lastResult;
-  const sections = [
-    { title: '一、评估概要', content: `评估时间：${d.assessment_time}\n评估模板：${d.preset_id}\n数据范围：客户${d.data_summary.customers}人，账户${d.data_summary.accounts}个，交易${d.data_summary.transactions}笔，产品${d.data_summary.products}只` },
-    { title: '二、综合风险评级', content: `综合评分：${d.overall_score} 分\n风险等级：${d.risk_level_name}` },
-  ];
-  ['customer','product','channel','geography'].forEach(dk => {
-    const dim = d.dimensions[dk];
-    let content = `维度评分：${dim.score} 分\n${dim.summary}\n\n`;
-    dim.items.forEach(it => { content += `· [${it.risk}] ${it.name}: ${it.detail} — ${it.remark}\n`; });
-    sections.push({ title: dim.name, content });
-  });
-  sections.push({ title: '四、整改建议', content: d.recommendations.map((r,i) => `${i+1}. ${r}`).join('\n') });
+// ── 评估历史切换 ──
+let showingHistory = false, trendChartInst = null, historyListData = [];
+function toggleHistory() {
+  showingHistory = !showingHistory;
+  const db = document.getElementById('dashboardView');
+  const hv = document.getElementById('historyView');
+  const btn = document.getElementById('historyBtn');
+  if (showingHistory) {
+    db.style.display = 'none'; hv.style.display = 'block';
+    btn.style.background = '#1a1f3a'; btn.style.color = '#fff'; btn.style.borderColor = '#1a1f3a';
+    btn.textContent = '📈 评估历史 (点击返回)';
+    loadHistoryView();
+  } else {
+    db.style.display = ''; hv.style.display = 'none';
+    btn.style.background = '#fff'; btn.style.color = '#1a1f3a'; btn.style.borderColor = '#d9d9d9';
+    btn.textContent = '📈 评估历史';
+  }
+}
 
-  fetch('/api/report/export-word', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      title: '公司洗钱风险自评估报告',
-      report_no: 'AML-' + new Date().toISOString().slice(0,10).replace(/-/g,''),
-      author: '合规部', date: d.assessment_time.slice(0,10),
-      template_id: 'tpl_quality', sections,
-    }),
-  }).then(r => r.blob()).then(blob => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'AML评估报告.docx'; a.click();
+async function loadHistoryView() {
+  // 加载历史列表
+  const r = await fetch('/api/aml/history?limit=50');
+  const d = await r.json();
+  historyListData = d.history || [];
+  renderHistoryList();
+  populateCompare();
+  loadTrend(0);
+}
+
+function renderHistoryList() {
+  const div = document.getElementById('historyListContent');
+  if (historyListData.length === 0) {
+    div.innerHTML = '<div style="text-align:center;color:#bbb;padding:30px">暂无评估记录</div>'; return;
+  }
+  const names = { preset_securities:'基金', preset_bank:'银行', preset_insurance:'保险' };
+  let h = '<table class="history-table" style="width:100%;border-collapse:collapse;font-size:0.84rem"><thead><tr style="background:#fafafa"><th style="padding:10px 14px;text-align:left">日期</th><th>模板</th><th>评分</th><th>等级</th><th>客户</th><th>交易</th></tr></thead><tbody>';
+  historyListData.forEach((r, i) => {
+    const tag = r.risk_level === '高' ? 'tag-high' : r.risk_level === '中' ? 'tag-mid' : 'tag-low';
+    h += `<tr onclick="toggleHistoryDetail(${i},this)" style="cursor:pointer;border-bottom:1px solid #f0f0f0"><td style="padding:9px 14px">${r.assess_date}</td><td>${names[r.preset_id]||r.preset_id}</td><td style="font-weight:700">${r.overall_score}</td><td><span class="risk-tag ${tag}" style="font-size:0.75rem;padding:2px 8px;border-radius:8px">${r.risk_level}</span></td><td>${r.customer_count}</td><td>${r.trans_count}</td></tr>`;
+    h += `<tr id="hdetail-${i}" style="display:none"><td colspan="6" style="padding:0 14px 12px;background:#f6f8ff"><div id="hdetail-grid-${i}" class="detail-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px"></div></td></tr>`;
+  });
+  h += '</tbody></table>';
+  div.innerHTML = h;
+}
+
+async function toggleHistoryDetail(i, tr) {
+  const dr = document.getElementById('hdetail-' + i);
+  if (dr.style.display !== 'none') { dr.style.display = 'none'; tr.classList.remove('expanded'); return; }
+  const h = historyListData[i];
+  const r = await fetch(`/api/aml/history/${h.id}`); const d = await r.json();
+  if (d.status !== 'ok') return;
+  const rec = d.record;
+  const colors = ['#4a90e2','#e67e22','#7b68ee','#2ecc71'];
+  const dnames = ['客户风险','产品/业务风险','渠道风险','地域风险'];
+  const dkeys = ['customer','product','channel','geography'];
+  document.getElementById('hdetail-grid-' + i).innerHTML = dkeys.map((dk, j) => {
+    const sc = rec.scores[dk] || 0;
+    const cl = sc <= 30 ? '#52c41a' : sc <= 60 ? '#faad14' : '#e74c3c';
+    const items = (rec.dimensions[dk] || {}).items || [];
+    return `<div style="border:1px solid #e8e8e8;border-left:3px solid ${colors[j]};border-radius:8px;padding:12px"><div style="font-weight:700;font-size:0.82rem;margin-bottom:4px">${dnames[j]}</div><div style="font-size:1.3rem;font-weight:700;color:${cl}">${sc}</div><div style="font-size:0.75rem;color:#888;margin-top:4px">${items.slice(0,3).map(it => '· '+it.name+': '+it.risk).join('<br>')}</div></div>`;
+  }).join('');
+  dr.style.display = ''; tr.classList.add('expanded');
+}
+
+function populateCompare() {
+  const h = historyListData.map(r => `<option value="${r.id}">#${r.id} — ${r.assess_date} (${r.overall_score}分 ${r.risk_level})</option>`).join('');
+  document.getElementById('compareA').innerHTML = h;
+  document.getElementById('compareB').innerHTML = h;
+  if (historyListData.length >= 2) { document.getElementById('compareA').selectedIndex = 0; document.getElementById('compareB').selectedIndex = 1; }
+}
+
+async function runCompare() {
+  const id1 = document.getElementById('compareA').value;
+  const id2 = document.getElementById('compareB').value;
+  if (!id1 || !id2) return;
+  const r = await fetch(`/api/aml/compare?id1=${id1}&id2=${id2}`);
+  const d = await r.json();
+  if (d.status !== 'ok') { alert('对比失败'); return; }
+  const dl = { overall:'综合评分', customer:'客户风险', product:'产品/业务风险', channel:'渠道风险', geography:'地域风险' };
+  let h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">';
+  h += `<div style="border:1px solid #e8e8e8;border-radius:10px;padding:16px;text-align:center"><div style="font-size:0.78rem;color:#999">${d.assessment_a.date}</div><div style="font-size:2.2rem;font-weight:700">${d.assessment_a.overall_score}</div><div>${d.assessment_a.risk_level}</div></div>`;
+  h += `<div style="border:1px solid #e8e8e8;border-radius:10px;padding:16px;text-align:center"><div style="font-size:0.78rem;color:#999">${d.assessment_b.date}</div><div style="font-size:2.2rem;font-weight:700">${d.assessment_b.overall_score}</div><div>${d.assessment_b.risk_level}</div></div>`;
+  h += '</div><div style="border-top:1px solid #f0f0f0;padding-top:12px"><b>维度变化</b><br>';
+  for (const [k, lb] of Object.entries(dl)) {
+    const df = d.comparison[k];
+    const c = df.direction === 'up' ? '#e74c3c' : df.direction === 'down' ? '#52c41a' : '#999';
+    h += `<div style="padding:5px 0"><span style="color:#888;font-size:0.85rem">${lb}</span> <span style="color:${c};font-weight:700">${df.label}</span></div>`;
+  }
+  h += '</div>';
+  document.getElementById('compareResult').innerHTML = h;
+}
+
+function loadTrend(months) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  fetch(`/api/aml/history/trend?limit=${months || 50}`).then(r => r.json()).then(d => {
+    const data = d.trend || [];
+    if (!trendChartInst) trendChartInst = echarts.init(document.getElementById('trendChart'));
+    if (data.length === 0) { trendChartInst.setOption({ title: { text: '暂无数据', left: 'center', top: 'center', textStyle: { color: '#bbb' } } }); return; }
+    trendChartInst.setOption({
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['综合','客户','产品','渠道','地域'], bottom: 0 },
+      grid: { left: 40, right: 20, top: 20, bottom: 40 },
+      xAxis: { type: 'category', data: data.map(d => d.date.slice(0,10)), axisLabel: { rotate: 30, fontSize: 10 } },
+      yAxis: { type: 'value', min: 0, max: 100 },
+      series: [
+        { name: '综合', type: 'line', data: data.map(d => d.overall), lineStyle: { width: 3, color: '#1a1f3a' }, itemStyle: { color: '#1a1f3a' }, symbol: 'circle', symbolSize: 5 },
+        { name: '客户', type: 'line', data: data.map(d => d.customer), lineStyle: { color: '#4a90e2' }, itemStyle: { color: '#4a90e2' } },
+        { name: '产品', type: 'line', data: data.map(d => d.product), lineStyle: { color: '#e67e22' }, itemStyle: { color: '#e67e22' } },
+        { name: '渠道', type: 'line', data: data.map(d => d.channel), lineStyle: { color: '#7b68ee' }, itemStyle: { color: '#7b68ee' } },
+        { name: '地域', type: 'line', data: data.map(d => d.geography), lineStyle: { color: '#2ecc71' }, itemStyle: { color: '#2ecc71' } },
+      ],
+    }, true);
   });
 }
+
 </script>
 </body>
 </html>

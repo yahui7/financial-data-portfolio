@@ -156,5 +156,11 @@ async def clear_data():
     """清空所有业务数据（reset）"""
     importer = DataImporter()
     importer.clear_all()
+    # 同时清空评估历史（数据都没了，历史也失去意义）
+    from backend.database import get_connection
+    conn = get_connection()
+    conn.cursor().execute("DELETE FROM assessment_history")
+    conn.commit()
+    conn.close()
     _uploaded_files.clear()
-    return {"status": "ok", "message": "所有数据已清空"}
+    return {"status": "ok", "message": "所有数据和评估历史已清空"}

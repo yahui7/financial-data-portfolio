@@ -10,8 +10,8 @@
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f0f2f5; color: #333; }
 .header { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #fff; padding: 0 32px; display: flex; align-items: center; gap: 16px; height: 56px; }
 .header a { color: #7eb8da; text-decoration: none; font-size: 0.82rem; }
-.header h1 { font-size: 1.1rem; font-weight: 600; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px 24px 40px; }
+.header h1 { font-size: 1.3rem; font-weight: 600; }
+.container { max-width: 1100px; margin: 0 auto; padding: 24px; }
 
 .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
 .tab { padding: 9px 24px; border: 1px solid #d9d9d9; background: #fff; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.88rem; font-weight: 600; transition: all 0.15s; }
@@ -78,7 +78,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .nav-step.done { color: #389e0d; background: #f6ffed; border: 1px solid #b7eb8f; cursor: pointer; }
 .nav-step.done:hover { background: #d9f7be; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
 .nav-step.active { color: #fff; background: #1a1f3a; border: 1px solid #1a1f3a; box-shadow: 0 4px 12px rgba(26,31,58,0.3); }
-.nav-step.wait { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
+.nav-step.ready { color: #333; background: #fff; border: 1px solid #d9d9d9; cursor: pointer; }
+.nav-step.ready:hover { border-color: #4a90d9; color: #4a90d9; }
+.nav-step.locked { color: #bbb; background: #fff; border: 1px solid #e8e8e8; pointer-events: none; }
 .nav-connector { flex: 1; height: 0; border-top: 2px dashed #d9d9d9; min-width: 30px; margin: 0 4px; }
 .nav-connector.done { border-color: #b7eb8f; border-style: solid; }
 </style>
@@ -86,21 +88,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <body>
 
 <div class="header">
-  <a href="/aml/">← 评估</a>
-  <h1>评估历史与趋势</h1>
+  <a href="/">← 首页</a>
+  <h1>公司洗钱风险评估</h1>
+  <span style="flex:1"></span>
 </div>
 
 <div class="container">
 
-  <div class="nav-steps">
-    <a href="/import/" class="nav-step done">✓ 数据导入</a>
-    <span class="nav-connector done"></span>
-    <a href="/aml/items.html" class="nav-step done">✓ 评估指标</a>
-    <span class="nav-connector done"></span>
-    <span class="nav-step active">● 执行评估</span>
-    <span class="nav-connector"></span>
-    <span class="nav-step wait">○ 报告生成</span>
-  </div>
+  <div class="nav-steps" id="navSteps"></div>
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('history')">📋 评估记录</div>
@@ -151,6 +146,51 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 <div class="footer">© 2026 金融合规智能平台</div>
 
 <script>
+// ── 动态导航 ──
+async function renderNav(step) {
+  const steps = [
+    { num: 1, label: '数据导入', href: '/import/' },
+    { num: 2, label: '评估指标', href: '/aml/items.html' },
+    { num: 3, label: '执行评估', href: '/aml/' },
+    { num: 4, label: '报告生成', href: '/report/' },
+  ];
+  let hasData = false, hasHistory = false;
+  try {
+    const sd = await (await fetch('/api/import/status')).json();
+    hasData = sd.status === 'ok' && Object.values(sd.counts || {}).some(c => c > 0);
+  } catch(e) {}
+  try {
+    const hd = await (await fetch('/api/aml/history?limit=1')).json();
+    hasHistory = hd.status === 'ok' && (hd.history || []).length > 0;
+  } catch(e) {}
+  const canEnter = (n) => {
+    if (n <= 2) return true;
+    if (n === 3) return hasData;
+    if (n === 4) return hasHistory;
+    return false;
+  };
+  const isDone = (n) => {
+    if (n === 1) return hasData;
+    if (n === 2) return hasData;
+    if (n === 3) return hasHistory;
+    if (n === 4) return hasHistory && localStorage.getItem('report_done') === '1';
+    return false;
+  };
+  let html = '';
+  steps.forEach((s, i) => {
+    if (i > 0) html += `<span class="nav-connector${isDone(s.num) ? ' done' : ''}"></span>`;
+    let cls, icon;
+    if (s.num === step) { cls = 'active'; icon = '●'; }
+    else if (canEnter(s.num)) { cls = isDone(s.num) ? 'done' : 'ready'; icon = isDone(s.num) ? '✓' : '○'; }
+    else { cls = 'locked'; icon = '🔒'; }
+    const tag = cls === 'locked' ? 'span' : 'a';
+    const href = cls !== 'locked' ? ` href="${s.href}"` : '';
+    html += `<${tag} class="nav-step ${cls}"${href}>${icon} ${s.label}</${tag}>`;
+  });
+  document.getElementById('navSteps').innerHTML = html;
+}
+renderNav(3);
+
 let trendChart = null;
 let historyData = [];
 

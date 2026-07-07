@@ -79,14 +79,14 @@ async def list_items(
     if dimension:
         cursor.execute(
             "SELECT * FROM assessment_item "
-            "WHERE preset_id = ? AND dimension = ? AND enabled = 1 "
+            "WHERE preset_id = ? AND dimension = ? "
             "ORDER BY sort_order",
             (preset_id, dimension),
         )
     else:
         cursor.execute(
             "SELECT * FROM assessment_item "
-            "WHERE preset_id = ? AND enabled = 1 "
+            "WHERE preset_id = ? "
             "ORDER BY dimension, sort_order",
             (preset_id,),
         )
