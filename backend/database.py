@@ -161,6 +161,20 @@ def init_db():
         )
     """)
 
+    # 报告历史表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS report_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title VARCHAR(200),
+            report_no VARCHAR(50),
+            author VARCHAR(50),
+            date VARCHAR(20),
+            template_id VARCHAR(50),
+            sections_json TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # 预置评估模板（INSERT OR IGNORE 避免重复写入）
     _seed_assessment_templates(cursor)
 

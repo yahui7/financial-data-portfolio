@@ -54,5 +54,5 @@ async def health_check():
     return {"status": "ok", "message": "金融数据产品作品集运行中"}
 
 
-# 前端静态文件 — 放在最后，避免拦截 API 路由
-app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
+# 前端静态文件 — 开发阶段挂载旧 HTML，React 前端用 npm run dev (5173)
+app.mount("/", StaticFiles(directory="frontend-old", html=True), name="frontend")
